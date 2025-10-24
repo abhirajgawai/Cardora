@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir \"E:\\Cardora\\app\")",
+      "Bash(dir:*)",
+      "Bash(powershell:*)",
+      "Bash(python tests/test_password_reset.py:*)",
+      "Bash(python -c \"from app.models.user import User; print(''✓ User model imports successfully'')\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
