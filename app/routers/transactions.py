@@ -52,7 +52,7 @@ async def list_transactions(
     card_id: Optional[UUID] = Query(None, description="Filter by credit card"),
     category_id: Optional[UUID] = Query(None, description="Filter by category"),
     page: int = Query(1, ge=1, description="Page number"),
-    limit: int = Query(20, ge=1, le=100, description="Items per page")
+    limit: int = Query(20, ge=1, le=10000, description="Items per page (max 10000)")
 ):
     """
     List transactions with filtering
@@ -63,7 +63,7 @@ async def list_transactions(
     - **card_id**: Filter by credit card
     - **category_id**: Filter by category
     - **page**: Page number (default: 1)
-    - **limit**: Items per page (default: 20, max: 100)
+    - **limit**: Items per page (default: 20, max: 10000)
 
     Returns:
     - Paginated list of transactions

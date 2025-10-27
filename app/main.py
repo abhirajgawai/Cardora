@@ -2,6 +2,7 @@
 # This is similar to Program.cs in ASP.NET Core
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from app.routers import auth, users, credit_cards, categories, statements, transactions, analytics
 
 # Create the FastAPI application instance
@@ -10,6 +11,22 @@ app = FastAPI(
     title="Cardora API",
     description="Credit Card Statement Analyzer with AI-Powered PDF Extraction",
     version="1.0.0"
+)
+
+# Configure CORS for Next.js frontend
+# Allow requests from localhost:3000 (Next.js dev server)
+# IMPORTANT: This must be added BEFORE registering routers
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",  # Next.js development server
+        "http://127.0.0.1:3000",  # Alternative localhost
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all HTTP methods (GET, POST, PUT, DELETE, OPTIONS, etc.)
+    allow_headers=["*"],  # Allow all headers (Authorization, Content-Type, etc.)
+    expose_headers=["*"],  # Expose all headers to the browser
+    max_age=3600,  # Cache preflight requests for 1 hour
 )
 
 # Register routers (like app.MapControllers() in .NET)
@@ -58,3 +75,13 @@ def health_check():
         "status": "healthy",
         "service": "Cardora API"
     }
+
+# Global OPTIONS handler for CORS preflight requests
+# This is needed because FastAPI's CORSMiddleware doesn't always handle OPTIONS correctly
+@app.options("/{full_path:path}")
+async def options_handler():
+    """
+    Handle OPTIONS requests for CORS preflight
+    The CORSMiddleware should handle this, but this is a fallback
+    """
+    return {}

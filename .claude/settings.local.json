@@ -5,7 +5,12 @@
       "Bash(dir:*)",
       "Bash(powershell:*)",
       "Bash(python tests/test_password_reset.py:*)",
-      "Bash(python -c \"from app.models.user import User; print(''✓ User model imports successfully'')\")"
+      "Bash(python -c \"from app.models.user import User; print(''✓ User model imports successfully'')\")",
+      "Bash(npm run dev:*)",
+      "Bash(taskkill:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(tasklist:*)"
     ],
     "deny": [],
     "ask": []
