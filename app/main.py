@@ -1,9 +1,14 @@
 # FastAPI application entry point
 # This is similar to Program.cs in ASP.NET Core
+# Updated: Added CORS support for IPv6 localhost
+
+# Load environment variables from .env file
+from dotenv import load_dotenv
+load_dotenv()  # IMPORTANT: Must be called before importing app modules that use env vars
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import auth, users, credit_cards, categories, statements, transactions, analytics
+from app.routers import auth, users, credit_cards, categories, statements, transactions, analytics, insights, alerts
 
 # Create the FastAPI application instance
 # Similar to: var app = WebApplication.CreateBuilder(args).Build();
@@ -20,7 +25,11 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",  # Next.js development server
-        "http://127.0.0.1:3000",  # Alternative localhost
+        "http://localhost:3001",  # Next.js development server (alternative port)
+        "http://127.0.0.1:3000",  # Alternative localhost (IPv4)
+        "http://127.0.0.1:3001",  # Alternative localhost (IPv4, port 3001)
+        "http://[::1]:3000",      # IPv6 localhost
+        "http://[::1]:3001",      # IPv6 localhost (port 3001)
     ],
     allow_credentials=True,
     allow_methods=["*"],  # Allow all HTTP methods (GET, POST, PUT, DELETE, OPTIONS, etc.)
@@ -44,6 +53,12 @@ app.include_router(transactions.router)  # View & manage transactions
 
 # Analytics - The Real Value!
 app.include_router(analytics.router)  # Spending analysis across cards and time
+
+# AI Insights - The WOW Factor!
+app.include_router(insights.router)  # AI-generated and rule-based spending insights
+
+# Payment Alerts - Financial Wellness Feature!
+app.include_router(alerts.router)  # Payment behavior alerts and debt warnings
 
 # Root endpoint - GET /
 # The @app.get() decorator is like [HttpGet("/")] attribute in C#
@@ -78,10 +93,13 @@ def health_check():
 
 # Global OPTIONS handler for CORS preflight requests
 # This is needed because FastAPI's CORSMiddleware doesn't always handle OPTIONS correctly
-@app.options("/{full_path:path}")
-async def options_handler():
-    """
-    Handle OPTIONS requests for CORS preflight
-    The CORSMiddleware should handle this, but this is a fallback
-    """
-    return {}
+# COMMENTED OUT: This was interfering with GET routes on /insights
+# The CORSMiddleware is sufficient for handling CORS
+# @app.options("/{full_path:path}")
+# async def options_handler():
+#     """
+#     Handle OPTIONS requests for CORS preflight
+#     The CORSMiddleware should handle this, but this is a fallback
+#     """
+#     return {}
+

@@ -8,7 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import Link from "next/link";
 import { login } from "@/lib/api/auth";
-import { extractErrorMessage } from "@/utils/errorHandler";
+import { extractErrorMessage } from "@/lib/utils/errorHandler";
 
 // Validation schema
 const loginSchema = z.object({

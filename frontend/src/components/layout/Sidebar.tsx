@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import ThemeToggle from "@/components/ThemeToggle";
+import ThemeToggle from "@/components/common/ThemeToggle";
 
 interface NavItem {
   name: string;

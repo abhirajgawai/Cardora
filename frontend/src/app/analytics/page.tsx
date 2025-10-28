@@ -4,20 +4,41 @@ import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { getTransactions } from '@/lib/api/transactions';
 import { getCards } from '@/lib/api/cards';
-import { Transaction, CreditCard } from '@/models';
-import { extractErrorMessage, isAuthError } from '@/utils/errorHandler';
-import { formatCardDisplayName } from '@/utils/cardFormatter';
-import Sidebar from '@/components/Sidebar';
-import Footer from '@/components/Footer';
-import TimeRangeSelector, { TimeRange } from '@/components/TimeRangeSelector';
+import { getInsights, Insight } from '@/lib/api/insights';
+import { getStatements } from '@/lib/api/statements';
+import { Transaction, CreditCard, Statement } from '@/models';
+import { extractErrorMessage, isAuthError } from '@/lib/utils/errorHandler';
+import { formatCardDisplayName } from '@/lib/utils/cardFormatter';
+import Sidebar from '@/components/layout/Sidebar';
+import Footer from '@/components/layout/Footer';
+import TimeRangeSelector, { TimeRange } from '@/components/common/TimeRangeSelector';
+import MonthYearPicker, { MonthYearValue } from '@/components/common/MonthYearPicker';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import InsightsList from '@/components/insights/InsightsList';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogBody,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import {
   filterTransactionsByTimeRange,
   getTimeRangeLabel,
   calculatePercentageChange,
   getPreviousPeriodDateRange,
   filterTransactionsByDateRange,
-} from '@/utils/dateFilters';
+} from '@/lib/utils/dateFilters';
 import {
   BarChart,
   Bar,
@@ -64,26 +85,45 @@ export default function AnalyticsPage() {
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [cards, setCards] = useState<CreditCard[]>([]);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [insights, setInsights] = useState<Insight[]>([]);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
-  // Time range filter - default to last_6_months for analytics
-  const [selectedTimeRange, setSelectedTimeRange] = useState<TimeRange>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('analytics_time_range');
-      return (saved as TimeRange) || 'last_6_months';
-    }
-    return 'last_6_months';
-  });
+  // Time range filter - will be overridden by most recent statement on initial load
+  const [selectedTimeRange, setSelectedTimeRange] = useState<TimeRange>('all_time');
+
+  // Specific month filter - will be set to most recent statement on initial load
+  const [specificMonth, setSpecificMonth] = useState<MonthYearValue | null>(null);
+
+  // Category drill-down modal state
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [transactionsData, cardsData] = await Promise.all([
+        const [transactionsData, cardsData, insightsData, statementsData] = await Promise.all([
           getTransactions({ limit: 10000 }),
           getCards(),
+          getInsights({ show_dismissed: false }).catch(() => []),
+          getStatements().catch(() => []),
         ]);
 
         setAllTransactions(Array.isArray(transactionsData) ? transactionsData : []);
         setCards(Array.isArray(cardsData) ? cardsData : []);
+        setInsights(Array.isArray(insightsData) ? insightsData : []);
+
+        // Set default filter to most recent statement on initial load
+        if (isInitialLoad && Array.isArray(statementsData) && statementsData.length > 0) {
+          const mostRecentStatement = statementsData[0];
+          setSpecificMonth({
+            month: mostRecentStatement.statement_month,
+            year: mostRecentStatement.statement_year
+          });
+          console.log(`[Analytics] Defaulting to most recent statement: ${mostRecentStatement.statement_month}/${mostRecentStatement.statement_year}`);
+        }
+
+        // Mark initial load as complete
+        setIsInitialLoad(false);
       } catch (error) {
         console.error('Analytics error:', extractErrorMessage(error));
         if (isAuthError(error)) {
@@ -96,18 +136,38 @@ export default function AnalyticsPage() {
     };
 
     fetchData();
-  }, [router]);
+  }, [router, isInitialLoad]);
+
+  // Function to refresh insights after user actions
+  const refreshInsights = async () => {
+    try {
+      const insightsData = await getInsights({ show_dismissed: false });
+      setInsights(Array.isArray(insightsData) ? insightsData : []);
+    } catch (error) {
+      console.error('Failed to refresh insights:', error);
+    }
+  };
 
   // Handle time range change
   const handleTimeRangeChange = (newRange: TimeRange) => {
     setSelectedTimeRange(newRange);
-    localStorage.setItem('analytics_time_range', newRange);
+    // Clear specific month when time range is changed
+    if (newRange !== 'all_time') {
+      setSpecificMonth(null);
+    }
   };
 
-  // Filter transactions by time range
+  // Filter transactions by specific month or time range
   const transactions = useMemo(() => {
+    // If specific month is selected, use that instead of time range
+    if (specificMonth) {
+      return allTransactions.filter(
+        (t) => t.statement_month === specificMonth.month && t.statement_year === specificMonth.year
+      );
+    }
+    // Otherwise use time range filter
     return filterTransactionsByTimeRange(allTransactions, selectedTimeRange);
-  }, [allTransactions, selectedTimeRange]);
+  }, [allTransactions, selectedTimeRange, specificMonth]);
 
   // Filter transactions by selected card
   const filteredTransactions = useMemo(() => {
@@ -202,7 +262,7 @@ export default function AnalyticsPage() {
     const merchantMap = new Map<string, { total: number; count: number }>();
 
     filteredTransactions.forEach(t => {
-      const merchant = t.merchant || t.description;
+      const merchant = t.merchant_name || t.description || 'Unknown';
       const existing = merchantMap.get(merchant) || { total: 0, count: 0 };
       existing.total += Number(t.amount);
       existing.count += 1;
@@ -235,6 +295,27 @@ export default function AnalyticsPage() {
       total: Math.round((dayMap.get(day) || 0) * 100) / 100,
     }));
   }, [filteredTransactions]);
+
+  // Transactions for selected category (for modal)
+  const categoryTransactions = useMemo(() => {
+    if (!selectedCategory) return [];
+    return filteredTransactions
+      .filter(t => (t.category?.name || 'Uncategorized') === selectedCategory)
+      .sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime());
+  }, [filteredTransactions, selectedCategory]);
+
+  // Handler for clicking on a pie chart segment
+  const handleCategoryClick = (categoryName: string) => {
+    setSelectedCategory(categoryName);
+    setCategoryModalOpen(true);
+  };
+
+  // Get card name by ID (helper function for modal)
+  const getCardName = (cardId: string): string => {
+    const card = cards.find((c) => c.id === cardId);
+    if (!card) return 'Unknown Card';
+    return formatCardDisplayName(card.card_name, card.bank_name, card.card_type, card.last_four_digits);
+  };
 
   if (loading) {
     return (
@@ -278,12 +359,38 @@ export default function AnalyticsPage() {
                 d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <span>Analyzing data from <strong className="text-foreground">{getTimeRangeLabel(selectedTimeRange)}</strong></span>
+            <span>
+              Analyzing data from{' '}
+              <strong className="text-foreground">
+                {specificMonth
+                  ? `${new Date(specificMonth.year, specificMonth.month - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
+                  : getTimeRangeLabel(selectedTimeRange)
+                }
+              </strong>
+            </span>
           </div>
 
           {/* Filters */}
           <div className="fintech-card p-5 mb-5 animate-slide-in">
-            <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Specific Month Filter */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Specific Month
+                </label>
+                <MonthYearPicker
+                  value={specificMonth}
+                  onChange={(value) => {
+                    setSpecificMonth(value);
+                    if (value) {
+                      // Clear time range when specific month is selected
+                      setSelectedTimeRange('all_time');
+                    }
+                  }}
+                  placeholder="Select specific month..."
+                />
+              </div>
+
               {/* Card Filter */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
@@ -306,6 +413,19 @@ export default function AnalyticsPage() {
               </div>
             </div>
           </div>
+
+          {/* AI Insights Section */}
+          {insights.length > 0 && (
+            <div className="mb-6">
+              <div className="mb-4">
+                <h2 className="text-lg font-bold text-foreground mb-1">AI-Powered Insights</h2>
+                <p className="text-sm text-muted-foreground">
+                  Personalized spending insights generated by AI
+                </p>
+              </div>
+              <InsightsList insights={insights} onUpdate={refreshInsights} />
+            </div>
+          )}
 
           {/* Overview KPIs */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
@@ -373,7 +493,7 @@ export default function AnalyticsPage() {
           {/* Charts Row 1 */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
             {/* Card Comparison */}
-            <div className="fintech-card p-5 animate-slide-in" style={{ animationDelay: "0.5s" }}>
+            <div className="fintech-card chart-card p-5 animate-slide-in" style={{ animationDelay: "0.5s" }}>
               <div className="mb-4">
                 <h3 className="text-base font-bold text-foreground mb-0.5">Card Comparison</h3>
                 <p className="text-xs text-muted-foreground">Total spending by card</p>
@@ -394,7 +514,7 @@ export default function AnalyticsPage() {
             </div>
 
             {/* Monthly Trends */}
-            <div className="fintech-card p-5 animate-slide-in" style={{ animationDelay: "0.6s" }}>
+            <div className="fintech-card chart-card p-5 animate-slide-in" style={{ animationDelay: "0.6s" }}>
               <div className="mb-4">
                 <h3 className="text-base font-bold text-foreground mb-0.5">Monthly Trends</h3>
                 <p className="text-xs text-muted-foreground">Spending over time</p>
@@ -418,10 +538,10 @@ export default function AnalyticsPage() {
           {/* Charts Row 2 */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
             {/* Category Breakdown */}
-            <div className="fintech-card p-5 animate-slide-in" style={{ animationDelay: "0.7s" }}>
+            <div className="fintech-card chart-card p-5 animate-slide-in" style={{ animationDelay: "0.7s" }}>
               <div className="mb-4">
                 <h3 className="text-base font-bold text-foreground mb-0.5">All Categories</h3>
-                <p className="text-xs text-muted-foreground">Complete spending breakdown</p>
+                <p className="text-xs text-muted-foreground">Click on a category to view transactions</p>
               </div>
               {categoryData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={280}>
@@ -434,11 +554,17 @@ export default function AnalyticsPage() {
                       outerRadius={95}
                       fill="#8884d8"
                       dataKey="value"
-                      label={(props: { name: string; percent: number }) => `${props.name.slice(0, 10)} (${(props.percent * 100).toFixed(0)}%)`}
+                      label={(props: any) => `${props.name.slice(0, 10)} (${(props.percent * 100).toFixed(0)}%)`}
                       labelLine={{ stroke: '#94A3B8', strokeWidth: 1 }}
+                      onClick={(data: any) => handleCategoryClick(data.name)}
+                      style={{ cursor: 'pointer' }}
                     >
                       {categoryData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={CHART_COLORS[index % CHART_COLORS.length]}
+                          style={{ cursor: 'pointer' }}
+                        />
                       ))}
                     </Pie>
                     <Tooltip formatter={(value: number) => [`$${value.toFixed(2)}`, 'Amount']} contentStyle={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '8px 12px' }} />
@@ -450,7 +576,7 @@ export default function AnalyticsPage() {
             </div>
 
             {/* Day of Week */}
-            <div className="fintech-card p-5 animate-slide-in" style={{ animationDelay: "0.8s" }}>
+            <div className="fintech-card chart-card p-5 animate-slide-in" style={{ animationDelay: "0.8s" }}>
               <div className="mb-4">
                 <h3 className="text-base font-bold text-foreground mb-0.5">Day of Week Analysis</h3>
                 <p className="text-xs text-muted-foreground">When do you spend most?</p>
@@ -479,28 +605,40 @@ export default function AnalyticsPage() {
             </div>
             <div className="overflow-x-auto">
               {topMerchants.length > 0 ? (
-                <table className="w-full">
-                  <thead className="bg-muted/20">
-                    <tr>
-                      <th className="px-5 py-3 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">#</th>
-                      <th className="px-5 py-3 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Merchant</th>
-                      <th className="px-5 py-3 text-right text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Total Spent</th>
-                      <th className="px-5 py-3 text-right text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Transactions</th>
-                      <th className="px-5 py-3 text-right text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Avg/Transaction</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
+                <Table>
+                  <TableHeader className="bg-muted/20">
+                    <TableRow className="hover:bg-muted/20">
+                      <TableHead className="px-5 py-3.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider w-16">#</TableHead>
+                      <TableHead className="px-5 py-3.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Merchant</TableHead>
+                      <TableHead className="px-5 py-3.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-right">Total Spent</TableHead>
+                      <TableHead className="px-5 py-3.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-right">Transactions</TableHead>
+                      <TableHead className="px-5 py-3.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-right">Avg/Transaction</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {topMerchants.map((merchant, index) => (
-                      <tr key={index} className="hover:bg-muted/10 transition-all duration-200">
-                        <td className="px-5 py-3.5 text-sm font-semibold text-muted-foreground">{index + 1}</td>
-                        <td className="px-5 py-3.5 text-sm font-medium text-foreground">{merchant.name}</td>
-                        <td className="px-5 py-3.5 text-right text-sm font-semibold text-foreground">${merchant.total.toFixed(2)}</td>
-                        <td className="px-5 py-3.5 text-right text-sm text-muted-foreground">{merchant.count}</td>
-                        <td className="px-5 py-3.5 text-right text-sm text-muted-foreground">${merchant.avgTransaction.toFixed(2)}</td>
-                      </tr>
+                      <TableRow key={index} className="hover:bg-muted/10 transition-all duration-200">
+                        <TableCell className="px-5 py-4 text-sm font-bold text-primary">
+                          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10">
+                            {index + 1}
+                          </div>
+                        </TableCell>
+                        <TableCell className="px-5 py-4 text-sm font-semibold text-foreground">{merchant.name}</TableCell>
+                        <TableCell className="px-5 py-4 text-right text-sm font-bold text-foreground">
+                          ${merchant.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </TableCell>
+                        <TableCell className="px-5 py-4 text-right text-sm text-muted-foreground">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-primary/10 text-primary font-medium">
+                            {merchant.count}
+                          </span>
+                        </TableCell>
+                        <TableCell className="px-5 py-4 text-right text-sm text-muted-foreground">
+                          ${merchant.avgTransaction.toFixed(2)}
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               ) : (
                 <div className="px-5 py-10 text-center text-muted-foreground text-sm">No merchant data available</div>
               )}
@@ -510,6 +648,81 @@ export default function AnalyticsPage() {
 
         <Footer />
       </div>
+
+      {/* Category Transactions Modal */}
+      <Dialog open={categoryModalOpen} onOpenChange={setCategoryModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{selectedCategory} Transactions</DialogTitle>
+            <DialogDescription>
+              {categoryTransactions.length} transaction{categoryTransactions.length !== 1 ? 's' : ''} totaling $
+              {categoryTransactions.reduce((sum, t) => sum + Number(t.amount), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogBody>
+            {categoryTransactions.length > 0 ? (
+              <Table>
+                <TableHeader className="bg-muted/20">
+                  <TableRow className="hover:bg-muted/20">
+                    <TableHead className="px-6 py-3.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                      Date
+                    </TableHead>
+                    <TableHead className="px-6 py-3.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                      Description
+                    </TableHead>
+                    <TableHead className="px-6 py-3.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                      Merchant
+                    </TableHead>
+                    <TableHead className="px-6 py-3.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                      Card
+                    </TableHead>
+                    <TableHead className="px-6 py-3.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-right">
+                      Amount
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {categoryTransactions.map((transaction) => (
+                    <TableRow key={transaction.id} className="hover:bg-muted/10 transition-all duration-200">
+                      <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground font-medium">
+                        {new Date(transaction.transaction_date).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })}
+                      </TableCell>
+                      <TableCell className="px-6 py-4 text-sm">
+                        <div className="font-semibold text-foreground">{transaction.description}</div>
+                      </TableCell>
+                      <TableCell className="px-6 py-4 text-sm text-muted-foreground">
+                        {transaction.merchant_name || '-'}
+                      </TableCell>
+                      <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                        {getCardName(transaction.card_id)}
+                      </TableCell>
+                      <TableCell className="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-foreground">
+                        ${Number(transaction.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="px-6 py-12 text-center text-muted-foreground">
+                No transactions found for this category
+              </div>
+            )}
+          </DialogBody>
+          <DialogFooter>
+            <button
+              onClick={() => setCategoryModalOpen(false)}
+              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              Close
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

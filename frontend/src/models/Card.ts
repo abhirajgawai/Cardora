@@ -34,4 +34,5 @@ export interface UpdateCardData {
   current_balance?: number;
   statement_date?: number;
   due_date?: number;
+  is_active?: boolean;
 }

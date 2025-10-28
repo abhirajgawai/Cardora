@@ -201,8 +201,8 @@ Statement text:
 """
 
     try:
-        # Use Gemini 2.5 Flash (latest stable model)
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        # Use Gemini Pro (Gemini 1.0 - compatible with v1beta API)
+        model = genai.GenerativeModel('gemini-pro')
 
         print("[INFO] Sending request to Gemini AI...")
         response = model.generate_content(prompt)
@@ -326,23 +326,36 @@ You are an expert at analyzing credit card statements and extracting metadata.
 
 I will provide you with text extracted from a credit card PDF statement.
 
-Your task: Extract the following information from the statement header/top section:
+Your task: Extract the following information from the statement:
 
+**CARD INFORMATION:**
 1. **Bank Name**: The issuing bank (e.g., "CITI", "DBS", "Standard Chartered")
 2. **Card Type/Name**: The card product name (e.g., "PREMIERMILES WORLD MASTER", "Cashback Visa")
 3. **Last 4 Digits**: Last 4 digits of the card number (e.g., "0368")
 4. **Cardholder Name**: Name on the card (e.g., "ABHIRAJ GAUTAM GAVAI")
-5. **Statement Date**: The statement date in YYYY-MM-DD format
+5. **Statement Date**: The statement closing date in YYYY-MM-DD format
 6. **Due Date**: Payment due date in YYYY-MM-DD format
 7. **Credit Limit**: Total credit limit (if available, otherwise null)
-8. **Current Balance**: Current outstanding balance (if available, otherwise null)
+
+**BALANCE & PAYMENT INFORMATION (CRITICAL FOR DEBT DETECTION):**
+8. **Statement Balance**: Total amount owed on this statement (also called "New Balance", "Amount Due", "Total Amount Due")
+9. **Minimum Payment Due**: Minimum payment required to avoid late fees
+10. **Previous Balance**: Balance carried over from previous statement (also called "Previous Outstanding Balance", "Last Month's Balance")
+11. **New Charges**: New purchases/charges this billing cycle (sum of all new transactions)
+12. **Payments/Credits**: Payments and credits received this cycle (negative value or separate field, may say "Payments Received", "Credits")
+13. **Interest Charged**: Interest charged this cycle (may be 0.00 if paid in full, also called "Finance Charges", "Interest/Finance Charges")
+14. **Fees Charged**: Late fees, annual fees, over-limit fees, etc. (may be 0.00)
+15. **APR**: Annual Percentage Rate for purchases (e.g., 24.99 for 24.99%)
 
 IMPORTANT RULES:
-- Extract information from the HEADER/TOP section of the statement
+- Extract ALL balance information - this is critical for detecting if user paid their bill
 - Be precise with dates - use YYYY-MM-DD format
 - If a field is not found, set it to null
 - For amounts, use decimal format (e.g., 15000.00)
+- For negative amounts (payments), use negative values (e.g., -500.00)
 - Bank name should be clean (e.g., "CITI" not "Citibank N.A.")
+- Look for "Summary of Account" or "Account Summary" section for balances
+- Statement Balance = Previous Balance + New Charges - Payments + Interest + Fees
 
 Return ONLY a JSON object in this EXACT format:
 {{
@@ -353,18 +366,25 @@ Return ONLY a JSON object in this EXACT format:
   "statement_date": "2025-04-15",
   "due_date": "2025-05-10",
   "credit_limit": 15000.00,
-  "current_balance": 2345.67
+  "statement_balance": 2345.67,
+  "minimum_payment_due": 50.00,
+  "previous_balance": 1800.00,
+  "new_charges": 800.00,
+  "payments_credits": -300.00,
+  "interest_charged": 24.00,
+  "fees_charged": 0.00,
+  "apr": 24.99
 }}
 
 Do NOT include any explanations, comments, or markdown. ONLY the JSON object.
 
-Statement text (first 5000 characters):
-{pdf_text[:5000]}
+Statement text (first 8000 characters to capture summary section):
+{pdf_text[:8000]}
 """
 
     try:
-        # Use Gemini 2.5 Flash (latest stable model)
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        # Use Gemini Pro (Gemini 1.0 - compatible with v1beta API)
+        model = genai.GenerativeModel('gemini-pro')
 
         print("[INFO] Extracting card metadata with Gemini AI...")
         response = model.generate_content(prompt)
@@ -594,3 +614,4 @@ for trans_data in transactions:
 db.commit()
 print(f"Saved {len(transactions)} transactions to database!")
 """
+

@@ -18,7 +18,7 @@ from decimal import Decimal
 from uuid import UUID
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status, BackgroundTasks
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -31,7 +31,8 @@ from app.schemas import (
     StatementResponse,
     StatementUploadResponse,
     StatementListResponse,
-    TransactionResponse
+    TransactionResponse,
+    StatementStatusResponse
 )
 from app.auth.jwt import get_current_user
 from app.core.gemini_service import (
@@ -40,6 +41,7 @@ from app.core.gemini_service import (
     extract_text_from_pdf,
     extract_card_metadata_from_pdf
 )
+from app.services.insights_orchestrator import generate_insights_background
 
 # ═══════════════════════════════════════════════════════════════════
 # ROUTER SETUP
@@ -67,6 +69,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
     description="Upload credit card PDF statement and automatically extract transactions using AI"
 )
 async def upload_statement(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(..., description="PDF statement file"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -274,6 +277,18 @@ async def upload_statement(
     # STEP 9: Create Statement Record (processing status)
     # ══════════════════════════════════════════════════════════════
 
+    # Calculate days until due
+    from datetime import date as date_class
+
+    days_until_due = None
+    if card_metadata.get("due_date"):
+        try:
+            due_date_obj = datetime.strptime(card_metadata["due_date"], "%Y-%m-%d").date()
+            today = date_class.today()
+            days_until_due = (due_date_obj - today).days
+        except:
+            pass
+
     statement = Statement(
         user_id=current_user.id,
         card_id=card.id,
@@ -284,7 +299,20 @@ async def upload_statement(
         total_amount=Decimal("0.00"),
         processing_status="processing",
         ai_confidence_score=None,
-        processed_at=None
+        processed_at=None,
+        # Balance & Payment Tracking Fields
+        statement_date=datetime.strptime(card_metadata["statement_date"], "%Y-%m-%d").date() if card_metadata.get("statement_date") else None,
+        due_date=datetime.strptime(card_metadata["due_date"], "%Y-%m-%d").date() if card_metadata.get("due_date") else None,
+        statement_balance=Decimal(str(card_metadata["statement_balance"])) if card_metadata.get("statement_balance") else None,
+        minimum_payment_due=Decimal(str(card_metadata["minimum_payment_due"])) if card_metadata.get("minimum_payment_due") else None,
+        previous_balance=Decimal(str(card_metadata["previous_balance"])) if card_metadata.get("previous_balance") else None,
+        new_charges=Decimal(str(card_metadata["new_charges"])) if card_metadata.get("new_charges") else None,
+        payments_credits=Decimal(str(card_metadata["payments_credits"])) if card_metadata.get("payments_credits") else None,
+        interest_charged=Decimal(str(card_metadata["interest_charged"])) if card_metadata.get("interest_charged") else Decimal("0.00"),
+        fees_charged=Decimal(str(card_metadata["fees_charged"])) if card_metadata.get("fees_charged") else Decimal("0.00"),
+        apr=Decimal(str(card_metadata["apr"])) if card_metadata.get("apr") else None,
+        payment_status="pending",  # Will be updated by payment detection
+        days_until_due=days_until_due
     )
 
     db.add(statement)
@@ -292,6 +320,7 @@ async def upload_statement(
     db.refresh(statement)
 
     print(f"[INFO] Statement record created: {statement.id}")
+    print(f"[INFO] Balance data captured: Statement Balance=${statement.statement_balance}, Due=${statement.minimum_payment_due}")
 
     # ══════════════════════════════════════════════════════════════
     # STEP 10: Extract Transactions with Gemini AI
@@ -379,8 +408,81 @@ async def upload_statement(
     statement.processing_status = "completed"
     statement.processed_at = datetime.now()
 
+    # Set insights status to processing (background task will update this)
+    statement.insights_status = "processing"
+
     db.commit()
     db.refresh(statement)
+
+    # ══════════════════════════════════════════════════════════════
+    # STEP 8.5: Detect Payment Behavior & Generate Alerts
+    # ══════════════════════════════════════════════════════════════
+
+    from app.services.payment_detection import detect_payment_behavior, get_previous_statement
+    from app.models.alert import PaymentAlert
+
+    print(f"[INFO] Detecting payment behavior...")
+    previous_stmt = get_previous_statement(db, card.id, statement_month, statement_year)
+
+    payment_result = detect_payment_behavior(db, statement, previous_stmt)
+
+    # Create alert if needed
+    if payment_result["alert_message"] and payment_result["alert_level"] != "none":
+        print(f"[INFO] Creating payment alert: {payment_result['payment_status']}")
+
+        # Determine alert type
+        alert_type_map = {
+            "paid_full": "payment_success",
+            "partial_paid": "payment_warning",
+            "below_minimum": "late_payment",
+            "no_payment": "no_payment",
+            "unknown": "payment_info"
+        }
+
+        alert_type = alert_type_map.get(payment_result["payment_status"], "payment_info")
+
+        # Create alert title based on status
+        title_map = {
+            "paid_full": "✓ Paid in Full - Great Job!",
+            "partial_paid": "⚠️ Partial Payment - Interest Will Accrue",
+            "below_minimum": "🚨 Minimum Payment Not Met",
+            "no_payment": "🚨 CRITICAL: No Payment Detected",
+            "unknown": "Payment Information"
+        }
+
+        alert_title = title_map.get(payment_result["payment_status"], "Payment Alert")
+
+        alert = PaymentAlert(
+            user_id=current_user.id,
+            statement_id=previous_stmt.id if previous_stmt else statement.id,
+            alert_type=alert_type,
+            alert_level=payment_result["alert_level"],
+            title=alert_title,
+            message=payment_result["alert_message"],
+            recommendation=payment_result.get("recommendation"),
+            is_read=False,
+            is_dismissed=False
+        )
+
+        db.add(alert)
+        db.commit()
+        db.refresh(alert)
+
+        print(f"[SUCCESS] Payment alert created: {alert.id}")
+
+    # ══════════════════════════════════════════════════════════════
+    # STEP 8.6: Schedule Background Task for Insights Generation
+    # ══════════════════════════════════════════════════════════════
+
+    print(f"[INFO] Scheduling background task for insights generation...")
+    background_tasks.add_task(
+        generate_insights_background,
+        statement_id=statement.id,
+        user_id=current_user.id,
+        statement_month=statement_month,
+        statement_year=statement_year
+    )
+    print(f"[INFO] Background task scheduled successfully")
 
     # ══════════════════════════════════════════════════════════════
     # STEP 9: Prepare Response
@@ -390,10 +492,12 @@ async def upload_statement(
 
     # Add processing time to stats
     stats["processing_time_seconds"] = round(processing_time, 2)
+    stats["insights_status"] = "processing"  # Tell frontend to poll for status
 
     message = (
         f"Statement processed successfully! "
-        f"Extracted {len(saved_transactions)} transactions in {processing_time:.2f}s."
+        f"Extracted {len(saved_transactions)} transactions in {processing_time:.2f}s. "
+        f"Generating insights in background..."
     )
 
     return StatementUploadResponse(
@@ -520,6 +624,60 @@ async def delete_statement(
     db.commit()
 
     return None
+
+
+# ═══════════════════════════════════════════════════════════════════
+# GET /statements/{statement_id}/status - Check Insights Status
+# ═══════════════════════════════════════════════════════════════════
+
+@router.get(
+    "/{statement_id}/status",
+    response_model=StatementStatusResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Check statement processing status",
+    description="Check if insights are ready for a statement (used for polling)"
+)
+async def get_statement_status(
+    statement_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Check if insights are ready for a statement
+
+    Frontend polls this endpoint every 3-5 seconds after upload
+    to know when insights are ready to display.
+
+    Response:
+    - processing_status: "processing" | "completed" | "failed"
+    - insights_status: "pending" | "processing" | "completed" | "failed"
+    - insights_generated_at: Timestamp when insights were generated (if completed)
+    - error: Error message if failed
+
+    When insights_status becomes "completed", frontend can:
+    1. Stop polling
+    2. Fetch insights from GET /insights/hero
+    3. Display insights to user
+    """
+
+    statement = db.query(Statement).filter(
+        Statement.id == statement_id,
+        Statement.user_id == current_user.id
+    ).first()
+
+    if not statement:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Statement not found"
+        )
+
+    return StatementStatusResponse(
+        statement_id=statement.id,
+        processing_status=statement.processing_status,
+        insights_status=statement.insights_status,
+        insights_generated_at=statement.insights_generated_at,
+        error=statement.insights_error
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════

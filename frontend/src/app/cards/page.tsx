@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation';
 import { getCards, updateCard, deleteCard } from '@/lib/api/cards';
 import { getTransactions } from '@/lib/api/transactions';
 import { CreditCard, Transaction } from '@/models';
-import { extractErrorMessage, isAuthError } from '@/utils/errorHandler';
-import { formatCardType, formatBankName, formatCardDisplayName } from '@/utils/cardFormatter';
-import Sidebar from '@/components/Sidebar';
-import Footer from '@/components/Footer';
+import { extractErrorMessage, isAuthError } from '@/lib/utils/errorHandler';
+import { formatCardType, formatBankName, formatCardDisplayName } from '@/lib/utils/cardFormatter';
+import Sidebar from '@/components/layout/Sidebar';
+import Footer from '@/components/layout/Footer';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 // Card brand colors
@@ -531,7 +531,7 @@ export default function CardsPage() {
                       {/* Action Buttons */}
                       <div className="flex gap-2 pt-4 border-t border-border">
                         <button
-                          onClick={() => setViewingTransactions(card)}
+                          onClick={() => router.push(`/transactions?cardId=${card.id}`)}
                           className="flex-1 px-4 py-2 text-sm font-medium text-primary bg-primary/10 rounded-lg hover:bg-primary/20 transition-colors"
                         >
                           View Transactions
@@ -733,8 +733,8 @@ export default function CardsPage() {
                       <div key={transaction.id} className="flex items-center justify-between p-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors">
                         <div className="flex-1">
                           <p className="font-semibold text-foreground">{transaction.description}</p>
-                          {transaction.merchant && (
-                            <p className="text-sm text-muted-foreground">{transaction.merchant}</p>
+                          {transaction.merchant_name && (
+                            <p className="text-sm text-muted-foreground">{transaction.merchant_name}</p>
                           )}
                           <div className="flex items-center gap-2 mt-1">
                             <p className="text-xs text-muted-foreground">

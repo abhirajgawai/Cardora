@@ -1,16 +1,26 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { getCurrentUser } from '@/lib/api/auth';
 import { getTransactions } from '@/lib/api/transactions';
 import { getCards } from '@/lib/api/cards';
-import { User, Transaction, CreditCard } from '@/models';
-import { extractErrorMessage, isAuthError } from '@/utils/errorHandler';
-import { formatCardDisplayName } from '@/utils/cardFormatter';
-import Sidebar from '@/components/Sidebar';
-import Footer from '@/components/Footer';
+import { getStatements } from '@/lib/api/statements';
+import { User, Transaction, CreditCard, Statement } from '@/models';
+import { extractErrorMessage, isAuthError } from '@/lib/utils/errorHandler';
+import { formatCardDisplayName } from '@/lib/utils/cardFormatter';
+import Sidebar from '@/components/layout/Sidebar';
+import Footer from '@/components/layout/Footer';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import MonthYearPicker, { MonthYearValue } from '@/components/common/MonthYearPicker';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 const ITEMS_PER_PAGE = 25;
 
@@ -19,17 +29,21 @@ type SortDirection = 'asc' | 'desc';
 
 export default function TransactionsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [cards, setCards] = useState<CreditCard[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [merchantFilter, setMerchantFilter] = useState('all');
+  const [cardFilter, setCardFilter] = useState('all');
   const [dateRangeFilter, setDateRangeFilter] = useState('all');
+  const [specificMonth, setSpecificMonth] = useState<MonthYearValue | null>(null);
   const [minAmount, setMinAmount] = useState('');
   const [maxAmount, setMaxAmount] = useState('');
 
@@ -58,6 +72,23 @@ export default function TransactionsPage() {
           setCards([]);
         }
 
+        // Fetch statements to get the most recent one
+        try {
+          const statementsData = await getStatements();
+          if (isInitialLoad && Array.isArray(statementsData) && statementsData.length > 0) {
+            // Get the most recent statement (backend returns sorted by newest first)
+            const mostRecentStatement = statementsData[0];
+            // Set default filter to most recent statement
+            setSpecificMonth({
+              month: mostRecentStatement.statement_month,
+              year: mostRecentStatement.statement_year
+            });
+            console.log(`[Transactions] Defaulting to most recent statement: ${mostRecentStatement.statement_month}/${mostRecentStatement.statement_year}`);
+          }
+        } catch (statementError) {
+          console.warn('Failed to fetch statements:', extractErrorMessage(statementError));
+        }
+
         // Fetch all transactions
         try {
           const transactionsData = await getTransactions({ limit: 10000 });
@@ -71,6 +102,9 @@ export default function TransactionsPage() {
           console.warn('Failed to fetch transactions:', extractErrorMessage(transactionError));
           setTransactions([]);
         }
+
+        // Mark initial load as complete
+        setIsInitialLoad(false);
       } catch (error) {
         console.error('Transactions page error:', extractErrorMessage(error));
         if (isAuthError(error)) {
@@ -86,29 +120,164 @@ export default function TransactionsPage() {
     };
 
     fetchData();
-  }, [router]);
+  }, [router, isInitialLoad]);
 
-  // Get unique categories for filter dropdown
+  // Read cardId from URL query parameters and set card filter
+  useEffect(() => {
+    const cardIdFromUrl = searchParams.get('cardId');
+    if (cardIdFromUrl) {
+      setCardFilter(cardIdFromUrl);
+      // Clear the specific month filter when coming from cards page
+      setDateRangeFilter('all');
+      setSpecificMonth(null);
+    }
+  }, [searchParams]);
+
+  // Get available categories based on current filters (excluding category filter itself)
   const categories = useMemo(() => {
+    let filtered = [...transactions];
+
+    // Apply all filters EXCEPT category filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (t) =>
+          t.description?.toLowerCase().includes(query) ||
+          t.merchant_name?.toLowerCase().includes(query) ||
+          t.category?.name?.toLowerCase().includes(query)
+      );
+    }
+
+    if (cardFilter !== 'all') {
+      filtered = filtered.filter((t) => t.card_id === cardFilter);
+    }
+
+    if (merchantFilter !== 'all') {
+      filtered = filtered.filter((t) => t.merchant_name === merchantFilter);
+    }
+
+    if (specificMonth) {
+      filtered = filtered.filter(
+        (t) => t.statement_month === specificMonth.month && t.statement_year === specificMonth.year
+      );
+    } else if (dateRangeFilter !== 'all') {
+      const now = new Date();
+      const filterDate = new Date();
+
+      switch (dateRangeFilter) {
+        case 'today':
+          filterDate.setHours(0, 0, 0, 0);
+          break;
+        case 'week':
+          filterDate.setDate(now.getDate() - 7);
+          break;
+        case 'month':
+          filterDate.setMonth(now.getMonth() - 1);
+          break;
+        case '3months':
+          filterDate.setMonth(now.getMonth() - 3);
+          break;
+        case '6months':
+          filterDate.setMonth(now.getMonth() - 6);
+          break;
+        case 'year':
+          filterDate.setFullYear(now.getFullYear() - 1);
+          break;
+      }
+
+      filtered = filtered.filter(
+        (t) => new Date(t.transaction_date) >= filterDate
+      );
+    }
+
+    if (minAmount) {
+      filtered = filtered.filter((t) => Number(t.amount) >= Number(minAmount));
+    }
+    if (maxAmount) {
+      filtered = filtered.filter((t) => Number(t.amount) <= Number(maxAmount));
+    }
+
     const uniqueCategories = new Set<string>();
-    transactions.forEach((t) => {
+    filtered.forEach((t) => {
       if (t.category?.name) {
         uniqueCategories.add(t.category.name);
       }
     });
     return Array.from(uniqueCategories).sort();
-  }, [transactions]);
+  }, [transactions, searchQuery, cardFilter, merchantFilter, dateRangeFilter, specificMonth, minAmount, maxAmount]);
 
-  // Get unique merchants for filter dropdown
+  // Get available merchants based on current filters (excluding merchant filter itself)
   const merchants = useMemo(() => {
+    let filtered = [...transactions];
+
+    // Apply all filters EXCEPT merchant filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (t) =>
+          t.description?.toLowerCase().includes(query) ||
+          t.merchant_name?.toLowerCase().includes(query) ||
+          t.category?.name?.toLowerCase().includes(query)
+      );
+    }
+
+    if (cardFilter !== 'all') {
+      filtered = filtered.filter((t) => t.card_id === cardFilter);
+    }
+
+    if (categoryFilter !== 'all') {
+      filtered = filtered.filter((t) => t.category?.name === categoryFilter);
+    }
+
+    if (specificMonth) {
+      filtered = filtered.filter(
+        (t) => t.statement_month === specificMonth.month && t.statement_year === specificMonth.year
+      );
+    } else if (dateRangeFilter !== 'all') {
+      const now = new Date();
+      const filterDate = new Date();
+
+      switch (dateRangeFilter) {
+        case 'today':
+          filterDate.setHours(0, 0, 0, 0);
+          break;
+        case 'week':
+          filterDate.setDate(now.getDate() - 7);
+          break;
+        case 'month':
+          filterDate.setMonth(now.getMonth() - 1);
+          break;
+        case '3months':
+          filterDate.setMonth(now.getMonth() - 3);
+          break;
+        case '6months':
+          filterDate.setMonth(now.getMonth() - 6);
+          break;
+        case 'year':
+          filterDate.setFullYear(now.getFullYear() - 1);
+          break;
+      }
+
+      filtered = filtered.filter(
+        (t) => new Date(t.transaction_date) >= filterDate
+      );
+    }
+
+    if (minAmount) {
+      filtered = filtered.filter((t) => Number(t.amount) >= Number(minAmount));
+    }
+    if (maxAmount) {
+      filtered = filtered.filter((t) => Number(t.amount) <= Number(maxAmount));
+    }
+
     const uniqueMerchants = new Set<string>();
-    transactions.forEach((t) => {
+    filtered.forEach((t) => {
       if (t.merchant_name) {
         uniqueMerchants.add(t.merchant_name);
       }
     });
     return Array.from(uniqueMerchants).sort();
-  }, [transactions]);
+  }, [transactions, searchQuery, cardFilter, categoryFilter, dateRangeFilter, specificMonth, minAmount, maxAmount]);
 
   // Helper function to get card name by card_id
   const getCardName = (cardId: string): string => {
@@ -132,6 +301,11 @@ export default function TransactionsPage() {
       );
     }
 
+    // Apply card filter
+    if (cardFilter !== 'all') {
+      filtered = filtered.filter((t) => t.card_id === cardFilter);
+    }
+
     // Apply category filter
     if (categoryFilter !== 'all') {
       filtered = filtered.filter((t) => t.category?.name === categoryFilter);
@@ -142,8 +316,14 @@ export default function TransactionsPage() {
       filtered = filtered.filter((t) => t.merchant_name === merchantFilter);
     }
 
-    // Apply date range filter
-    if (dateRangeFilter !== 'all') {
+    // Apply specific month filter (takes priority over date range)
+    if (specificMonth) {
+      filtered = filtered.filter(
+        (t) => t.statement_month === specificMonth.month && t.statement_year === specificMonth.year
+      );
+    }
+    // Apply date range filter (only if no specific month is selected)
+    else if (dateRangeFilter !== 'all') {
       const now = new Date();
       const filterDate = new Date();
 
@@ -217,7 +397,7 @@ export default function TransactionsPage() {
     });
 
     return filtered;
-  }, [transactions, searchQuery, categoryFilter, merchantFilter, dateRangeFilter, minAmount, maxAmount, sortField, sortDirection]);
+  }, [transactions, searchQuery, cardFilter, categoryFilter, merchantFilter, dateRangeFilter, specificMonth, minAmount, maxAmount, sortField, sortDirection]);
 
   // Paginate transactions
   const paginatedTransactions = useMemo(() => {
@@ -252,7 +432,9 @@ export default function TransactionsPage() {
     setSearchQuery('');
     setCategoryFilter('all');
     setMerchantFilter('all');
+    setCardFilter('all');
     setDateRangeFilter('all');
+    setSpecificMonth(null);
     setMinAmount('');
     setMaxAmount('');
     setCurrentPage(1);
@@ -412,6 +594,48 @@ export default function TransactionsPage() {
                 />
               </div>
 
+              {/* Card Filter */}
+              <div>
+                <label className="block text-sm font-medium text-muted-foreground mb-2">
+                  Card
+                </label>
+                <SearchableSelect
+                  options={[
+                    { value: 'all', label: 'All Cards' },
+                    ...cards.map(card => ({
+                      value: card.id,
+                      label: formatCardDisplayName(card.card_name, card.bank_name, card.card_type, card.last_four_digits)
+                    }))
+                  ]}
+                  value={cardFilter}
+                  onChange={(value) => {
+                    setCardFilter(value);
+                    setCurrentPage(1);
+                  }}
+                  placeholder="Select card..."
+                  searchPlaceholder="Search cards..."
+                  emptyMessage="No card found."
+                />
+              </div>
+
+              {/* Specific Month Filter */}
+              <div>
+                <label className="block text-sm font-medium text-muted-foreground mb-2">
+                  Specific Month
+                </label>
+                <MonthYearPicker
+                  value={specificMonth}
+                  onChange={(value) => {
+                    setSpecificMonth(value);
+                    if (value) {
+                      setDateRangeFilter('all'); // Clear date range filter when specific month is selected
+                    }
+                    setCurrentPage(1);
+                  }}
+                  placeholder="Select specific month..."
+                />
+              </div>
+
               {/* Date Range Filter */}
               <div>
                 <label className="block text-sm font-medium text-muted-foreground mb-2">
@@ -430,6 +654,9 @@ export default function TransactionsPage() {
                   value={dateRangeFilter}
                   onChange={(value) => {
                     setDateRangeFilter(value);
+                    if (value !== 'all') {
+                      setSpecificMonth(null); // Clear specific month when date range is selected
+                    }
                     setCurrentPage(1);
                   }}
                   placeholder="Select date range..."
@@ -473,7 +700,7 @@ export default function TransactionsPage() {
             </div>
 
             {/* Active Filters Summary */}
-            {(searchQuery || categoryFilter !== 'all' || merchantFilter !== 'all' || dateRangeFilter !== 'all' || minAmount || maxAmount) && (
+            {(searchQuery || categoryFilter !== 'all' || merchantFilter !== 'all' || dateRangeFilter !== 'all' || specificMonth || minAmount || maxAmount) && (
               <div className="mt-4 pt-4 border-t border-border">
                 <p className="text-sm text-muted-foreground">
                   Showing <span className="font-bold text-foreground">{filteredAndSortedTransactions.length}</span> of{' '}
@@ -506,90 +733,90 @@ export default function TransactionsPage() {
             <div className="overflow-x-auto">
               {filteredAndSortedTransactions.length > 0 ? (
                 <>
-                  <table className="w-full">
-                    <thead className="bg-muted/30">
-                      <tr>
-                        <th
-                          className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted/50 transition-colors"
+                  <Table>
+                    <TableHeader className="bg-muted/20">
+                      <TableRow className="hover:bg-muted/20">
+                        <TableHead
+                          className="px-6 py-3.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted/50 transition-colors"
                           onClick={() => handleSort('date')}
                         >
                           <div className="flex items-center space-x-1">
                             <span>Date</span>
                             <SortIcon field="date" />
                           </div>
-                        </th>
-                        <th
-                          className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted/50 transition-colors"
+                        </TableHead>
+                        <TableHead
+                          className="px-6 py-3.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted/50 transition-colors"
                           onClick={() => handleSort('description')}
                         >
                           <div className="flex items-center space-x-1">
                             <span>Description</span>
                             <SortIcon field="description" />
                           </div>
-                        </th>
-                        <th
-                          className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted/50 transition-colors"
+                        </TableHead>
+                        <TableHead
+                          className="px-6 py-3.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted/50 transition-colors"
                           onClick={() => handleSort('merchant')}
                         >
                           <div className="flex items-center space-x-1">
                             <span>Merchant</span>
                             <SortIcon field="merchant" />
                           </div>
-                        </th>
-                        <th
-                          className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted/50 transition-colors"
+                        </TableHead>
+                        <TableHead
+                          className="px-6 py-3.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted/50 transition-colors"
                           onClick={() => handleSort('category')}
                         >
                           <div className="flex items-center space-x-1">
                             <span>Category</span>
                             <SortIcon field="category" />
                           </div>
-                        </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        </TableHead>
+                        <TableHead className="px-6 py-3.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
                           Card
-                        </th>
-                        <th
-                          className="px-6 py-4 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted/50 transition-colors"
+                        </TableHead>
+                        <TableHead
+                          className="px-6 py-3.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted/50 transition-colors text-right"
                           onClick={() => handleSort('amount')}
                         >
                           <div className="flex items-center justify-end space-x-1">
                             <span>Amount</span>
                             <SortIcon field="amount" />
                           </div>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {paginatedTransactions.map((transaction) => (
-                        <tr key={transaction.id} className="hover:bg-muted/20 transition-colors">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
+                        <TableRow key={transaction.id} className="hover:bg-muted/10 transition-all duration-200">
+                          <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground font-medium">
                             {new Date(transaction.transaction_date).toLocaleDateString('en-US', {
                               month: 'short',
                               day: 'numeric',
                               year: 'numeric',
                             })}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-foreground">
-                            <div className="font-medium">{transaction.description}</div>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-muted-foreground">
+                          </TableCell>
+                          <TableCell className="px-6 py-4 text-sm">
+                            <div className="font-semibold text-foreground">{transaction.description}</div>
+                          </TableCell>
+                          <TableCell className="px-6 py-4 text-sm text-muted-foreground">
                             {transaction.merchant_name || '-'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                          </TableCell>
+                          <TableCell className="px-6 py-4 whitespace-nowrap text-sm">
+                            <span className="inline-flex items-center px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
                               {transaction.category?.name || 'Uncategorized'}
                             </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                          </TableCell>
+                          <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                             {getCardName(transaction.card_id)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-foreground">
-                            ${Number(transaction.amount).toFixed(2)}
-                          </td>
-                        </tr>
+                          </TableCell>
+                          <TableCell className="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-foreground">
+                            ${Number(transaction.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </TableCell>
+                        </TableRow>
                       ))}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
 
                   {/* Pagination Controls */}
                   {totalPages > 1 && (
@@ -729,7 +956,7 @@ export default function TransactionsPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                     </svg>
                     <span className="text-sm font-medium text-muted-foreground">
-                      {searchQuery || categoryFilter !== 'all' || merchantFilter !== 'all' || dateRangeFilter !== 'all' || minAmount || maxAmount
+                      {searchQuery || categoryFilter !== 'all' || merchantFilter !== 'all' || dateRangeFilter !== 'all' || specificMonth || minAmount || maxAmount
                         ? 'Filtered Total'
                         : 'Grand Total'}
                     </span>

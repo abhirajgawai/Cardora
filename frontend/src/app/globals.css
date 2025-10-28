@@ -432,6 +432,17 @@ select:focus-visible {
   box-shadow: 0 12px 24px rgba(129, 140, 248, 0.1), 0 4px 8px rgba(0, 0, 0, 0.4);
 }
 
+/* Disable hover effect for chart containers */
+.fintech-card.chart-card:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.dark .fintech-card.chart-card:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
 /* Accent Stripes for Cards - V2 */
 .card-accent-indigo {
   border-top: 3px solid #4B6EF5;

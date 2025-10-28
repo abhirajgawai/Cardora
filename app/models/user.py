@@ -436,6 +436,15 @@ class User(Base):
     )
     # Compare to .NET: public List<Category> Categories { get; set; }
 
+    # Relationship to Insights (One-to-Many)
+    # "A user has many insights"
+    insights = relationship(
+        "Insight",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+    # Compare to .NET: public List<Insight> Insights { get; set; }
+
     # ============================================================
     # PYTHON MAGIC METHODS
     # ============================================================

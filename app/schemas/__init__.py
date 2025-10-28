@@ -33,6 +33,21 @@ from .analytics import (
     CardsAnalysisResponse,
     CategoryAnalysisResponse
 )
+from .insight import (
+    InsightResponse,
+    HeroInsightResponse,
+    InsightListResponse,
+    InsightDismissRequest,
+    InsightCompleteRequest,
+    StatementStatusResponse,
+    InsightsSummary
+)
+from .alert import (
+    PaymentAlertResponse,
+    AlertListResponse,
+    AlertMarkReadRequest,
+    AlertDismissRequest
+)
 
 __all__ = [
     # User schemas
@@ -70,4 +85,17 @@ __all__ = [
     "AnnualAnalysisResponse",
     "CardsAnalysisResponse",
     "CategoryAnalysisResponse",
+    # Insight schemas
+    "InsightResponse",
+    "HeroInsightResponse",
+    "InsightListResponse",
+    "InsightDismissRequest",
+    "InsightCompleteRequest",
+    "StatementStatusResponse",
+    "InsightsSummary",
+    # Alert schemas
+    "PaymentAlertResponse",
+    "AlertListResponse",
+    "AlertMarkReadRequest",
+    "AlertDismissRequest",
 ]

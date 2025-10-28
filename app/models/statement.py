@@ -29,10 +29,10 @@ Compare to .NET:
 """
 
 import uuid
-from sqlalchemy import Column, String, Integer, ForeignKey, Numeric, DateTime
+from sqlalchemy import Column, String, Integer, ForeignKey, Numeric, DateTime, Text, Date
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 
 from app.core.database import Base
 
@@ -193,6 +193,206 @@ class Statement(Base):
     # When the statement processing finished
     # NULL = still processing
     # Compare to .NET: public DateTime? ProcessedAt { get; set; }
+
+    # ═══════════════════════════════════════════════════════════════
+    # STATEMENT BALANCE & PAYMENT TRACKING (DEBT DETECTION!)
+    # ═══════════════════════════════════════════════════════════════
+
+    statement_date = Column(
+        Date,
+        nullable=True  # NULL if not extracted from PDF
+    )
+    # Statement closing date / billing cycle end date
+    # Example: 2025-01-15 (when billing cycle closed)
+    # Compare to .NET: public DateTime? StatementDate { get; set; }
+
+    due_date = Column(
+        Date,
+        nullable=True
+    )
+    # Payment due date
+    # Example: 2025-02-05 (21 days after statement date)
+    # Used to calculate days_until_due
+    # Compare to .NET: public DateTime? DueDate { get; set; }
+
+    statement_balance = Column(
+        Numeric(12, 2),  # Up to 9,999,999,999.99 (10 billion)
+        nullable=True
+    )
+    # Total amount owed on this statement
+    # "New Balance" or "Amount Due" on statement
+    # Example: 1500.00 SGD
+    # Compare to .NET: [Precision(12, 2)] public decimal? StatementBalance
+
+    minimum_payment_due = Column(
+        Numeric(10, 2),
+        nullable=True
+    )
+    # Minimum payment required to avoid late fees
+    # Usually 1-3% of statement balance or $25 minimum
+    # Example: 50.00 SGD
+    # Compare to .NET: [Precision(10, 2)] public decimal? MinimumPaymentDue
+
+    previous_balance = Column(
+        Numeric(12, 2),
+        nullable=True
+    )
+    # Balance carried over from previous statement
+    # CRITICAL for payment detection!
+    # If previous_balance < last_statement.statement_balance, user paid something
+    # Example: 1200.00 SGD (means user paid 300 from last 1500 balance)
+    # Compare to .NET: [Precision(12, 2)] public decimal? PreviousBalance
+
+    new_charges = Column(
+        Numeric(12, 2),
+        nullable=True
+    )
+    # New purchases/charges this billing cycle
+    # Sum of all positive transactions
+    # Example: 800.00 SGD in new spending
+    # Compare to .NET: [Precision(12, 2)] public decimal? NewCharges
+
+    payments_credits = Column(
+        Numeric(12, 2),
+        nullable=True
+    )
+    # Payments and credits received this cycle
+    # Sum of all negative transactions (payments, refunds)
+    # Example: -300.00 SGD (payment made)
+    # Compare to .NET: [Precision(12, 2)] public decimal? PaymentsCredits
+
+    interest_charged = Column(
+        Numeric(10, 2),
+        nullable=True,
+        default=0.00
+    )
+    # Interest charged this cycle (if carrying balance)
+    # ZERO if paid in full, POSITIVE if revolving balance
+    # Example: 24.00 SGD (2% of unpaid balance)
+    # Compare to .NET: [Precision(10, 2)] public decimal? InterestCharged
+
+    fees_charged = Column(
+        Numeric(10, 2),
+        nullable=True,
+        default=0.00
+    )
+    # Late fees, annual fees, over-limit fees, etc.
+    # Example: 35.00 SGD late payment fee
+    # Compare to .NET: [Precision(10, 2)] public decimal? FeesCharged
+
+    apr = Column(
+        Numeric(5, 2),
+        nullable=True
+    )
+    # Annual Percentage Rate for purchases
+    # Example: 24.99 (means 24.99% APR)
+    # Used to calculate future interest costs
+    # Compare to .NET: [Precision(5, 2)] public decimal? Apr
+
+    # ═══════════════════════════════════════════════════════════════
+    # PAYMENT STATUS & DETECTION
+    # ═══════════════════════════════════════════════════════════════
+
+    payment_status = Column(
+        String(50),
+        default="pending",
+        nullable=False,
+        index=True  # Index for filtering by payment status
+    )
+    # Values:
+    # - "pending": Due date not reached yet, waiting for payment
+    # - "paid_full": Paid entire statement balance (NO INTEREST!)
+    # - "partial_paid": Paid more than minimum but less than full (WILL PAY INTEREST)
+    # - "minimum_paid": Paid exactly minimum (WILL PAY INTEREST on rest)
+    # - "late": Did not pay minimum by due date (LATE FEE + INTEREST)
+    # - "unknown": Cannot determine (missing previous statement data)
+    # Compare to .NET: [Required] public string PaymentStatus { get; set; } = "pending";
+
+    amount_paid = Column(
+        Numeric(12, 2),
+        nullable=True,
+        default=0.00
+    )
+    # Amount user actually paid (detected from next statement)
+    # Calculated as: last_statement_balance - this_statement_previous_balance
+    # Example: 300.00 SGD
+    # Compare to .NET: [Precision(12, 2)] public decimal? AmountPaid
+
+    payment_detected_at = Column(
+        DateTime(timezone=True),
+        nullable=True
+    )
+    # When we detected the payment (when next statement was uploaded)
+    # NULL = not detected yet
+    # Compare to .NET: public DateTime? PaymentDetectedAt { get; set; }
+
+    revolving_balance = Column(
+        Numeric(12, 2),
+        nullable=True
+    )
+    # Unpaid balance carried to next month (subject to interest)
+    # Calculated as: statement_balance - amount_paid
+    # ZERO if paid in full, POSITIVE if carrying debt
+    # Example: 1200.00 SGD (will accrue interest)
+    # Compare to .NET: [Precision(12, 2)] public decimal? RevolvingBalance
+
+    estimated_monthly_interest = Column(
+        Numeric(10, 2),
+        nullable=True
+    )
+    # Estimated interest user will pay next month on revolving balance
+    # Calculated as: revolving_balance * (apr / 12 / 100)
+    # Example: 24.00 SGD per month
+    # Compare to .NET: [Precision(10, 2)] public decimal? EstimatedMonthlyInterest
+
+    estimated_annual_cost = Column(
+        Numeric(10, 2),
+        nullable=True
+    )
+    # Estimated annual interest cost if balance unchanged
+    # Calculated as: estimated_monthly_interest * 12
+    # Example: 288.00 SGD per year
+    # Compare to .NET: [Precision(10, 2)] public decimal? EstimatedAnnualCost
+
+    days_until_due = Column(
+        Integer,
+        nullable=True
+    )
+    # Days remaining until payment due
+    # Calculated when statement uploaded
+    # Negative = overdue
+    # Compare to .NET: public int? DaysUntilDue { get; set; }
+
+    # ═══════════════════════════════════════════════════════════════
+    # INSIGHTS GENERATION STATUS (NEW!)
+    # ═══════════════════════════════════════════════════════════════
+
+    insights_status = Column(
+        String(50),
+        default="pending",
+        nullable=False
+    )
+    # Values: "pending", "processing", "completed", "failed"
+    # Tracks background task for insights generation
+    # - "pending": Not started yet
+    # - "processing": Background task running
+    # - "completed": Insights generated successfully
+    # - "failed": Insights generation failed
+    # Frontend polls this to know when to show insights
+
+    insights_generated_at = Column(
+        DateTime(timezone=True),
+        nullable=True
+    )
+    # When insights were generated
+    # NULL = not generated yet
+
+    insights_error = Column(
+        Text,
+        nullable=True
+    )
+    # Error message if insights generation failed
+    # NULL = no error or not attempted yet
 
     # ═══════════════════════════════════════════════════════════════
     # TIMESTAMPS

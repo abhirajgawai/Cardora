@@ -5,12 +5,12 @@ import { useRouter } from 'next/navigation';
 import { getCurrentUser } from '@/lib/api/auth';
 import { uploadStatement } from '@/lib/api/statements';
 import { User, StatementUploadResponse } from '@/models';
-import { extractErrorMessage, isAuthError } from '@/utils/errorHandler';
-import Sidebar from '@/components/Sidebar';
-import Footer from '@/components/Footer';
-import UploadZone from '@/components/UploadZone';
-import UploadProgress from '@/components/UploadProgress';
-import UploadResults from '@/components/UploadResults';
+import { extractErrorMessage, isAuthError } from '@/lib/utils/errorHandler';
+import Sidebar from '@/components/layout/Sidebar';
+import Footer from '@/components/layout/Footer';
+import UploadZone from '@/components/upload/UploadZone';
+import UploadProgress from '@/components/upload/UploadProgress';
+import UploadResults from '@/components/upload/UploadResults';
 
 type UploadStage = 'idle' | 'uploading' | 'extracting' | 'processing' | 'complete' | 'error';
 

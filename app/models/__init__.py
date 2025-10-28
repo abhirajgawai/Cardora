@@ -21,6 +21,8 @@ from app.models.credit_card import CreditCard
 from app.models.category import Category
 from app.models.statement import Statement
 from app.models.transaction import Transaction
+from app.models.insight import Insight
+from app.models.alert import PaymentAlert
 
 # Export all models
 # IMPORTANT: All models MUST be imported here so SQLAlchemy Base can find them!
@@ -28,4 +30,4 @@ from app.models.transaction import Transaction
 # 1. Table creation (Base.metadata.create_all)
 # 2. Alembic migrations (autogenerate)
 # 3. Relationship resolution
-__all__ = ["User", "CreditCard", "Category", "Statement", "Transaction"]
+__all__ = ["User", "CreditCard", "Category", "Statement", "Transaction", "Insight", "PaymentAlert"]
