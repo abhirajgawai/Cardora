@@ -41,7 +41,7 @@ from app.core.gemini_service import (
     extract_text_from_pdf,
     extract_card_metadata_from_pdf
 )
-from app.services.insights_orchestrator import generate_insights_background
+# from app.services.insights_orchestrator import generate_insights_background  # Disabled for now
 
 # ═══════════════════════════════════════════════════════════════════
 # ROUTER SETUP
@@ -268,6 +268,11 @@ async def upload_statement(
     safe_filename = safe_filename.replace(" ", "_")
 
     new_file_path = os.path.join(UPLOAD_DIR, safe_filename)
+
+    # Remove existing file if it exists (allow re-upload)
+    if os.path.exists(new_file_path):
+        os.remove(new_file_path)
+
     os.rename(file_path, new_file_path)
     file_path = new_file_path
 
@@ -418,71 +423,73 @@ async def upload_statement(
     # STEP 8.5: Detect Payment Behavior & Generate Alerts
     # ══════════════════════════════════════════════════════════════
 
-    from app.services.payment_detection import detect_payment_behavior, get_previous_statement
-    from app.models.alert import PaymentAlert
+    # Disabled for now - payment_detection module not yet implemented
+    # from app.services.payment_detection import detect_payment_behavior, get_previous_statement
+    # from app.models.alert import PaymentAlert
 
-    print(f"[INFO] Detecting payment behavior...")
-    previous_stmt = get_previous_statement(db, card.id, statement_month, statement_year)
+    # print(f"[INFO] Detecting payment behavior...")
+    # previous_stmt = get_previous_statement(db, card.id, statement_month, statement_year)
 
-    payment_result = detect_payment_behavior(db, statement, previous_stmt)
+    # payment_result = detect_payment_behavior(db, statement, previous_stmt)
 
-    # Create alert if needed
-    if payment_result["alert_message"] and payment_result["alert_level"] != "none":
-        print(f"[INFO] Creating payment alert: {payment_result['payment_status']}")
+    # # Create alert if needed
+    # if payment_result["alert_message"] and payment_result["alert_level"] != "none":
+    #     print(f"[INFO] Creating payment alert: {payment_result['payment_status']}")
 
-        # Determine alert type
-        alert_type_map = {
-            "paid_full": "payment_success",
-            "partial_paid": "payment_warning",
-            "below_minimum": "late_payment",
-            "no_payment": "no_payment",
-            "unknown": "payment_info"
-        }
+    #     # Determine alert type
+    #     alert_type_map = {
+    #         "paid_full": "payment_success",
+    #         "partial_paid": "payment_warning",
+    #         "below_minimum": "late_payment",
+    #         "no_payment": "no_payment",
+    #         "unknown": "payment_info"
+    #     }
 
-        alert_type = alert_type_map.get(payment_result["payment_status"], "payment_info")
+    #     alert_type = alert_type_map.get(payment_result["payment_status"], "payment_info")
 
-        # Create alert title based on status
-        title_map = {
-            "paid_full": "✓ Paid in Full - Great Job!",
-            "partial_paid": "⚠️ Partial Payment - Interest Will Accrue",
-            "below_minimum": "🚨 Minimum Payment Not Met",
-            "no_payment": "🚨 CRITICAL: No Payment Detected",
-            "unknown": "Payment Information"
-        }
+    #     # Create alert title based on status
+    #     title_map = {
+    #         "paid_full": "✓ Paid in Full - Great Job!",
+    #         "partial_paid": "⚠️ Partial Payment - Interest Will Accrue",
+    #         "below_minimum": "🚨 Minimum Payment Not Met",
+    #         "no_payment": "🚨 CRITICAL: No Payment Detected",
+    #         "unknown": "Payment Information"
+    #     }
 
-        alert_title = title_map.get(payment_result["payment_status"], "Payment Alert")
+    #     alert_title = title_map.get(payment_result["payment_status"], "Payment Alert")
 
-        alert = PaymentAlert(
-            user_id=current_user.id,
-            statement_id=previous_stmt.id if previous_stmt else statement.id,
-            alert_type=alert_type,
-            alert_level=payment_result["alert_level"],
-            title=alert_title,
-            message=payment_result["alert_message"],
-            recommendation=payment_result.get("recommendation"),
-            is_read=False,
-            is_dismissed=False
-        )
+    #     alert = PaymentAlert(
+    #         user_id=current_user.id,
+    #         statement_id=previous_stmt.id if previous_stmt else statement.id,
+    #         alert_type=alert_type,
+    #         alert_level=payment_result["alert_level"],
+    #         title=alert_title,
+    #         message=payment_result["alert_message"],
+    #         recommendation=payment_result.get("recommendation"),
+    #         is_read=False,
+    #         is_dismissed=False
+    #     )
 
-        db.add(alert)
-        db.commit()
-        db.refresh(alert)
+    #     db.add(alert)
+    #     db.commit()
+    #     db.refresh(alert)
 
-        print(f"[SUCCESS] Payment alert created: {alert.id}")
+    #     print(f"[SUCCESS] Payment alert created: {alert.id}")
 
     # ══════════════════════════════════════════════════════════════
     # STEP 8.6: Schedule Background Task for Insights Generation
     # ══════════════════════════════════════════════════════════════
 
-    print(f"[INFO] Scheduling background task for insights generation...")
-    background_tasks.add_task(
-        generate_insights_background,
-        statement_id=statement.id,
-        user_id=current_user.id,
-        statement_month=statement_month,
-        statement_year=statement_year
-    )
-    print(f"[INFO] Background task scheduled successfully")
+    # Disabled for now - using manual /insights/generate endpoint instead
+    # print(f"[INFO] Scheduling background task for insights generation...")
+    # background_tasks.add_task(
+    #     generate_insights_background,
+    #     statement_id=statement.id,
+    #     user_id=current_user.id,
+    #     statement_month=statement_month,
+    #     statement_year=statement_year
+    # )
+    # print(f"[INFO] Background task scheduled successfully")
 
     # ══════════════════════════════════════════════════════════════
     # STEP 9: Prepare Response
@@ -492,12 +499,10 @@ async def upload_statement(
 
     # Add processing time to stats
     stats["processing_time_seconds"] = round(processing_time, 2)
-    stats["insights_status"] = "processing"  # Tell frontend to poll for status
 
     message = (
         f"Statement processed successfully! "
-        f"Extracted {len(saved_transactions)} transactions in {processing_time:.2f}s. "
-        f"Generating insights in background..."
+        f"Extracted {len(saved_transactions)} transactions in {processing_time:.2f}s."
     )
 
     return StatementUploadResponse(

@@ -445,6 +445,15 @@ class User(Base):
     )
     # Compare to .NET: public List<Insight> Insights { get; set; }
 
+    # Relationship to PaymentAlerts (One-to-Many)
+    # "A user has many payment alerts"
+    payment_alerts = relationship(
+        "PaymentAlert",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+    # Compare to .NET: public List<PaymentAlert> PaymentAlerts { get; set; }
+
     # ============================================================
     # PYTHON MAGIC METHODS
     # ============================================================

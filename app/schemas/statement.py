@@ -321,6 +321,63 @@ class StatementListResponse(BaseModel):
 
 
 # ═══════════════════════════════════════════════════════════════════
+# STATEMENT STATUS RESPONSE (for polling insights generation)
+# ═══════════════════════════════════════════════════════════════════
+
+class StatementStatusResponse(BaseModel):
+    """
+    Schema for statement processing status (used for polling)
+
+    Used for:
+    - GET /statements/{statement_id}/status
+    - Frontend polls this to check if insights are ready
+    """
+    statement_id: UUID = Field(
+        ...,
+        description="Statement ID",
+        examples=["880e8400-e29b-41d4-a716-446655440003"]
+    )
+
+    processing_status: str = Field(
+        ...,
+        description="Processing status: 'processing', 'completed', 'failed'",
+        examples=["completed", "processing", "failed"]
+    )
+
+    insights_status: Optional[str] = Field(
+        None,
+        description="Insights generation status: 'pending', 'processing', 'completed', 'failed'",
+        examples=["completed", "processing", "pending"]
+    )
+
+    insights_generated_at: Optional[datetime] = Field(
+        None,
+        description="When insights were generated",
+        examples=["2024-10-22T10:36:00Z"]
+    )
+
+    error: Optional[str] = Field(
+        None,
+        description="Error message if processing failed",
+        examples=["Failed to generate insights: insufficient data"]
+    )
+
+    # Configuration
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "statement_id": "880e8400-e29b-41d4-a716-446655440003",
+                "processing_status": "completed",
+                "insights_status": "completed",
+                "insights_generated_at": "2024-10-22T10:36:00Z",
+                "error": None
+            }
+        }
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════
 # USAGE EXAMPLES
 # ═══════════════════════════════════════════════════════════════════
 """

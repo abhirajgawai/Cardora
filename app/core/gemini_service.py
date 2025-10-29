@@ -201,8 +201,8 @@ Statement text:
 """
 
     try:
-        # Use Gemini Pro (Gemini 1.0 - compatible with v1beta API)
-        model = genai.GenerativeModel('gemini-pro')
+        # Use Gemini Pro Latest (modern replacement for deprecated gemini-pro)
+        model = genai.GenerativeModel('gemini-pro-latest')
 
         print("[INFO] Sending request to Gemini AI...")
         response = model.generate_content(prompt)
@@ -383,8 +383,8 @@ Statement text (first 8000 characters to capture summary section):
 """
 
     try:
-        # Use Gemini Pro (Gemini 1.0 - compatible with v1beta API)
-        model = genai.GenerativeModel('gemini-pro')
+        # Use Gemini Pro Latest (modern replacement for deprecated gemini-pro)
+        model = genai.GenerativeModel('gemini-pro-latest')
 
         print("[INFO] Extracting card metadata with Gemini AI...")
         response = model.generate_content(prompt)

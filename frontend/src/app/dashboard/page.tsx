@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { getCurrentUser } from '@/lib/api/auth';
 import { getCards } from '@/lib/api/cards';
 import { getTransactions } from '@/lib/api/transactions';
-import { getHeroInsight, Insight } from '@/lib/api/insights';
+import { getInsights, generateInsights, dismissInsight, Insight } from '@/lib/api/insights';
 import { getStatementStatus } from '@/lib/api/statements';
 import { User, CreditCard, Transaction } from '@/models';
 import { DashboardStats, LineChartData, PieChartData } from '@/types';
@@ -47,8 +47,9 @@ export default function DashboardPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   // Insights state
-  const [heroInsight, setHeroInsight] = useState<Insight | null>(null);
-  const [insightsStatus, setInsightsStatus] = useState<'loading' | 'processing' | 'completed' | 'failed' | null>(null);
+  const [insights, setInsights] = useState<Insight[]>([]);
+  const [insightsLoading, setInsightsLoading] = useState(false);
+  const [insightsGenerating, setInsightsGenerating] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -117,73 +118,57 @@ export default function DashboardPage() {
 
   // Fetch insights on mount
   useEffect(() => {
-    const fetchInsights = async () => {
-      try {
-        // Fetch hero insight
-        const hero = await getHeroInsight().catch(() => null);
-        setHeroInsight(hero);
+    const fetchInsightsData = async () => {
+      if (!user) return;
 
-        // If we have a hero insight, mark as completed
-        if (hero) {
-          setInsightsStatus('completed');
-        }
+      try {
+        setInsightsLoading(true);
+        const response = await getInsights(false); // Don't include dismissed
+        setInsights(response.insights);
       } catch (error) {
         console.error('Failed to fetch insights:', error);
+      } finally {
+        setInsightsLoading(false);
       }
     };
 
-    // Only fetch insights if user is loaded
-    if (user) {
-      fetchInsights();
-    }
+    fetchInsightsData();
   }, [user]);
 
-  // Poll statement status for insights generation
-  useEffect(() => {
-    const pollStatementStatus = async () => {
-      // Get the latest statement ID from localStorage (set during upload)
-      const latestStatementId = localStorage.getItem('latest_statement_id');
-      if (!latestStatementId) return;
+  // Handle generating insights
+  const handleGenerateInsights = async () => {
+    try {
+      setInsightsGenerating(true);
+      const response = await generateInsights();
 
-      try {
-        const status = await getStatementStatus(latestStatementId);
-
-        // Update insights status
-        if (status.insights_status === 'processing') {
-          setInsightsStatus('processing');
-        } else if (status.insights_status === 'completed') {
-          setInsightsStatus('completed');
-
-          // Fetch the new hero insight
-          const hero = await getHeroInsight().catch(() => null);
-          setHeroInsight(hero);
-
-          // Clear the statement ID from localStorage
-          localStorage.removeItem('latest_statement_id');
-        } else if (status.insights_status === 'failed') {
-          setInsightsStatus('failed');
-          localStorage.removeItem('latest_statement_id');
-        }
-      } catch (error) {
-        console.error('Failed to poll statement status:', error);
+      // Show success message
+      if (response.generated > 0) {
+        alert(`Generated ${response.generated} new insight(s)!`);
+        // Refresh insights list
+        const updatedInsights = await getInsights(false);
+        setInsights(updatedInsights.insights);
+      } else {
+        alert(response.message);
       }
-    };
-
-    // Start polling if we have a pending statement
-    const latestStatementId = localStorage.getItem('latest_statement_id');
-    if (latestStatementId && user) {
-      setInsightsStatus('processing');
-
-      // Poll every 3 seconds
-      const pollInterval = setInterval(pollStatementStatus, 3000);
-
-      // Initial poll
-      pollStatementStatus();
-
-      // Cleanup interval on unmount
-      return () => clearInterval(pollInterval);
+    } catch (error: any) {
+      console.error('Failed to generate insights:', error);
+      alert(error.response?.data?.detail || 'Failed to generate insights. Make sure you have uploaded statements with transactions.');
+    } finally {
+      setInsightsGenerating(false);
     }
-  }, [user]);
+  };
+
+  // Handle dismissing an insight
+  const handleDismissInsight = async (insightId: string) => {
+    try {
+      await dismissInsight(insightId);
+      // Remove from local state
+      setInsights(prev => prev.filter(i => i.id !== insightId));
+    } catch (error) {
+      console.error('Failed to dismiss insight:', error);
+      alert('Failed to dismiss insight');
+    }
+  };
 
   // Calculate stats for all transactions
   const stats = useMemo(() => {
@@ -254,67 +239,6 @@ export default function DashboardPage() {
       }));
   }, [transactions]);
 
-  // Smart insights
-  const insights = useMemo(() => {
-    const insights: { type: 'info' | 'warning' | 'success'; message: string }[] = [];
-
-    if (transactions.length === 0) {
-      insights.push({
-        type: 'info',
-        message: 'Upload your first statement to start tracking your spending patterns!'
-      });
-      return insights;
-    }
-
-    // Calculate this month vs last month
-    const currentDate = new Date();
-    const currentMonth = currentDate.getMonth() + 1;
-    const currentYear = currentDate.getFullYear();
-    const lastMonth = currentMonth === 1 ? 12 : currentMonth - 1;
-    const lastMonthYear = currentMonth === 1 ? currentYear - 1 : currentYear;
-
-    const thisMonthTotal = transactions
-      .filter(t => t.statement_month === currentMonth && t.statement_year === currentYear)
-      .reduce((sum, t) => sum + Number(t.amount), 0);
-
-    const lastMonthTotal = transactions
-      .filter(t => t.statement_month === lastMonth && t.statement_year === lastMonthYear)
-      .reduce((sum, t) => sum + Number(t.amount), 0);
-
-    if (thisMonthTotal > 0 && lastMonthTotal > 0) {
-      const percentChange = ((thisMonthTotal - lastMonthTotal) / lastMonthTotal) * 100;
-      if (Math.abs(percentChange) > 10) {
-        insights.push({
-          type: percentChange > 0 ? 'warning' : 'success',
-          message: `You've spent ${Math.abs(percentChange).toFixed(0)}% ${percentChange > 0 ? 'more' : 'less'} this month compared to last month ($${thisMonthTotal.toFixed(2)} vs $${lastMonthTotal.toFixed(2)})`
-        });
-      }
-    }
-
-    // Top category insight
-    if (categoryData.length > 0) {
-      const topCategory = categoryData[0];
-      const totalSpending = categoryData.reduce((sum, cat) => sum + cat.value, 0);
-      const percentage = (topCategory.value / totalSpending) * 100;
-
-      if (percentage > 30) {
-        insights.push({
-          type: 'info',
-          message: `${topCategory.name} is your highest spending category at ${percentage.toFixed(0)}% of your total ($${topCategory.value.toFixed(2)})`
-        });
-      }
-    }
-
-    // High confidence insight
-    if (stats.avgConfidence >= 90) {
-      insights.push({
-        type: 'success',
-        message: `AI categorization is working excellently at ${stats.avgConfidence}% accuracy across ${stats.transactionCount} transactions`
-      });
-    }
-
-    return insights.slice(0, 3); // Limit to 3 insights
-  }, [transactions, categoryData, stats]);
 
   // Statement periods - Show ALL uploaded periods
   const statementPeriods = useMemo(() => {
@@ -433,6 +357,28 @@ export default function DashboardPage() {
               </p>
             </div>
             <div className="flex items-center space-x-4">
+              {/* Generate Insights Button */}
+              <button
+                onClick={handleGenerateInsights}
+                disabled={insightsGenerating || transactions.length === 0}
+                className="flex items-center space-x-2 px-6 py-2.5 gradient-indigo-purple text-white font-semibold rounded-xl btn-hover-accent shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                title={transactions.length === 0 ? 'Upload statements to generate insights' : 'Generate AI Insights'}
+              >
+                {insightsGenerating ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Generating...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                    <span>Generate Insights</span>
+                  </>
+                )}
+              </button>
+
               {/* Upload Statement Button - Teal Accent for Pop */}
               <button
                 onClick={() => router.push('/upload')}
@@ -556,79 +502,50 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Insights Processing Status */}
-          {insightsStatus === 'processing' && (
-            <div className="mb-6 animate-slide-in" style={{ animationDelay: '0.6s' }}>
-              <div className="fintech-card p-4 flex items-center space-x-3">
-                <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-foreground">Generating AI Insights...</p>
-                  <p className="text-xs text-muted-foreground">Analyzing your spending patterns with Gemini AI</p>
+          {/* AI Insights Section */}
+          {insights.length > 0 && (
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-xl font-bold text-foreground">AI Insights</h2>
+                  <p className="text-sm text-muted-foreground">Personalized recommendations based on your spending patterns</p>
                 </div>
+                <div className="px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-semibold">
+                  {insights.length} Active
+                </div>
+              </div>
+              <div className="space-y-4">
+                {insights.map((insight, index) => (
+                  <div key={insight.id} className="animate-slide-in" style={{ animationDelay: `${0.6 + index * 0.1}s` }}>
+                    <HeroInsightCard
+                      insight={insight}
+                      onDismiss={() => handleDismissInsight(insight.id)}
+                    />
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
-          {/* Hero Insight Card */}
-          {heroInsight && (
-            <div className="mb-6 animate-slide-in" style={{ animationDelay: '0.7s' }}>
-              <HeroInsightCard
-                insight={heroInsight}
-                onDismiss={async () => {
-                  // Refetch hero insight after dismissing
-                  const hero = await getHeroInsight().catch(() => null);
-                  setHeroInsight(hero);
-                }}
-                onComplete={async () => {
-                  // Refetch hero insight after completing
-                  const hero = await getHeroInsight().catch(() => null);
-                  setHeroInsight(hero);
-                }}
-              />
-            </div>
-          )}
-
-          {/* Old Smart Insights Section - Fallback */}
-          {!heroInsight && insights.length > 0 && (
-            <div className="mb-6 space-y-3">
-              {insights.map((insight, index) => (
-                <div
-                  key={index}
-                  className={`fintech-card p-4 flex items-start space-x-3 animate-slide-in ${
-                    insight.type === 'warning' ? 'card-accent-amber' :
-                    insight.type === 'success' ? 'card-accent-emerald' :
-                    'card-accent-indigo'
-                  }`}
-                  style={{ animationDelay: `${0.5 + index * 0.1}s` }}
+          {/* No Insights Message */}
+          {insights.length === 0 && !insightsLoading && transactions.length > 0 && (
+            <div className="mb-6 animate-slide-in" style={{ animationDelay: '0.6s' }}>
+              <div className="fintech-card p-6 text-center">
+                <svg className="w-16 h-16 mx-auto mb-4 text-muted-foreground/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+                <h3 className="text-lg font-bold text-foreground mb-2">No Insights Yet</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Click "Generate Insights" to analyze your spending patterns and get personalized recommendations.
+                </p>
+                <button
+                  onClick={handleGenerateInsights}
+                  disabled={insightsGenerating}
+                  className="px-6 py-2.5 gradient-indigo-purple text-white font-semibold rounded-xl btn-hover-accent shadow-lg disabled:opacity-50"
                 >
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                    insight.type === 'warning' ? 'bg-amber-500/10' :
-                    insight.type === 'success' ? 'bg-emerald-500/10' :
-                    'bg-primary/10'
-                  }`}>
-                    {insight.type === 'warning' && (
-                      <svg className="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
-                    )}
-                    {insight.type === 'success' && (
-                      <svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    )}
-                    {insight.type === 'info' && (
-                      <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-foreground font-medium leading-relaxed">
-                      {insight.message}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                  {insightsGenerating ? 'Generating...' : 'Generate Insights'}
+                </button>
+              </div>
             </div>
           )}
 

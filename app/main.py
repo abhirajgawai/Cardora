@@ -8,7 +8,7 @@ load_dotenv()  # IMPORTANT: Must be called before importing app modules that use
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import auth, users, credit_cards, categories, statements, transactions, analytics, insights, alerts
+from app.routers import auth, users, credit_cards, categories, statements, transactions, analytics, insights
 
 # Create the FastAPI application instance
 # Similar to: var app = WebApplication.CreateBuilder(args).Build();
@@ -58,7 +58,7 @@ app.include_router(analytics.router)  # Spending analysis across cards and time
 app.include_router(insights.router)  # AI-generated and rule-based spending insights
 
 # Payment Alerts - Financial Wellness Feature!
-app.include_router(alerts.router)  # Payment behavior alerts and debt warnings
+# app.include_router(alerts.router)  # Payment behavior alerts and debt warnings - Disabled for now
 
 # Root endpoint - GET /
 # The @app.get() decorator is like [HttpGet("/")] attribute in C#

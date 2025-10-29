@@ -365,6 +365,14 @@ class Transaction(Base):
     )
     # Compare to .NET: public Category Category { get; set; }
 
+    # Relationship to Insights (Many-to-Many through InsightTransaction)
+    # "A transaction can be referenced by multiple insights"
+    insight_transactions = relationship(
+        "InsightTransaction",
+        back_populates="transaction"
+    )
+    # Compare to .NET: public List<InsightTransaction> InsightTransactions { get; set; }
+
     # ═══════════════════════════════════════════════════════════════
     # STRING REPRESENTATION
     # ═══════════════════════════════════════════════════════════════
