@@ -1,6 +1,11 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
+import { format } from 'date-fns';
+import { CalendarIcon, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 export interface MonthYearValue {
   month: number;
@@ -14,25 +19,17 @@ interface MonthYearPickerProps {
 }
 
 const MONTHS = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+];
+
+const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
 export default function MonthYearPicker({ value, onChange, availableMonths }: MonthYearPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
 
@@ -41,9 +38,9 @@ export default function MonthYearPicker({ value, onChange, availableMonths }: Mo
     setIsOpen(false);
   };
 
-  const handleClear = () => {
+  const handleClear = (e: React.MouseEvent) => {
+    e.stopPropagation();
     onChange(null);
-    setIsOpen(false);
   };
 
   const isMonthAvailable = (month: number, year: number) => {
@@ -52,61 +49,76 @@ export default function MonthYearPicker({ value, onChange, availableMonths }: Mo
   };
 
   return (
-    <div className="relative" ref={dropdownRef}>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="px-4 py-2.5 bg-card border border-border rounded-lg text-sm font-medium text-foreground hover:bg-muted/50 transition-colors flex items-center gap-2"
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          className={cn(
+            "justify-start text-left font-normal h-10 transition-all",
+            !value && "text-muted-foreground"
+          )}
+        >
+          <CalendarIcon className="mr-2 h-4 w-4" />
+          {value ? `${MONTH_NAMES[value.month - 1]} ${value.year}` : 'Select Month'}
+          {value && (
+            <X
+              className="ml-auto h-4 w-4 opacity-50 hover:opacity-100 transition-opacity"
+              onClick={handleClear}
+            />
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-[320px] p-0"
+        align="center"
+        side="bottom"
+        sideOffset={8}
+        collisionPadding={16}
       >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-        </svg>
-        {value ? `${MONTHS[value.month - 1]} ${value.year}` : 'Select Month'}
-        <svg className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-
-      {isOpen && (
-        <div className="absolute top-full mt-2 right-0 bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden min-w-[320px]">
-          <div className="p-3 border-b border-border flex items-center justify-between">
-            <span className="text-sm font-semibold text-foreground">Select Month & Year</span>
+        <div className="p-3">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="font-semibold text-sm text-foreground">Select Month & Year</h4>
             {value && (
-              <button
-                onClick={handleClear}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  onChange(null);
+                  setIsOpen(false);
+                }}
+                className="h-7 text-xs px-2"
               >
                 Clear
-              </button>
+              </Button>
             )}
           </div>
-          <div className="max-h-96 overflow-y-auto p-2">
+          <div className="space-y-3 max-h-[340px] overflow-y-auto pr-1">
             {years.map(year => (
-              <div key={year} className="mb-4 last:mb-0">
-                <div className="px-2 py-1 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              <div key={year}>
+                <div className="px-1 py-1 text-xs font-bold text-muted-foreground uppercase tracking-wider">
                   {year}
                 </div>
-                <div className="grid grid-cols-3 gap-1">
+                <div className="grid grid-cols-3 gap-1.5">
                   {Array.from({ length: 12 }, (_, i) => i + 1).map(month => {
                     const available = isMonthAvailable(month, year);
                     const selected = value?.month === month && value?.year === year;
 
                     return (
-                      <button
+                      <Button
                         key={month}
                         onClick={() => available && handleMonthYearSelect(month, year)}
                         disabled={!available}
-                        className={`
-                          px-3 py-2 text-sm rounded-lg transition-all
-                          ${selected
-                            ? 'bg-primary text-white font-semibold'
-                            : available
-                              ? 'bg-muted/30 text-foreground hover:bg-muted/60'
-                              : 'bg-muted/10 text-muted-foreground/40 cursor-not-allowed'
-                          }
-                        `}
+                        variant={selected ? "default" : "outline"}
+                        size="sm"
+                        className={cn(
+                          "h-8 text-xs transition-all",
+                          !available && "opacity-40 cursor-not-allowed",
+                          selected && "bg-primary text-primary-foreground font-semibold",
+                          !selected && available && "hover:bg-accent hover:text-accent-foreground"
+                        )}
                       >
-                        {MONTHS[month - 1].slice(0, 3)}
-                      </button>
+                        {MONTHS[month - 1]}
+                      </Button>
                     );
                   })}
                 </div>
@@ -114,7 +126,7 @@ export default function MonthYearPicker({ value, onChange, availableMonths }: Mo
             ))}
           </div>
         </div>
-      )}
-    </div>
+      </PopoverContent>
+    </Popover>
   );
 }

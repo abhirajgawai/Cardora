@@ -632,7 +632,6 @@ export default function TransactionsPage() {
                     }
                     setCurrentPage(1);
                   }}
-                  placeholder="Select specific month..."
                 />
               </div>
 

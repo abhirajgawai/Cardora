@@ -154,6 +154,16 @@ class CreditCard(Base):
     # Numeric is used for money to avoid floating point errors
     # Compare to .NET: [Precision(10, 2)] public decimal? CreditLimit
 
+    statement_day = Column(
+        String(50),           # VARCHAR(50) to store day of month (1-31)
+        nullable=True         # Optional - user may not know or want to set it
+    )
+    # Example: "16" means statement is generated on the 16th of every month
+    # Used to determine if a statement should exist yet or is still pending
+    # If current date < statement_day, show "Statement will be generated on..."
+    # If current date >= statement_day, show "Statement not uploaded"
+    # Compare to .NET: [Range(1, 31)] public int? StatementDay
+
     # ═══════════════════════════════════════════════════════════════
     # STATUS FLAGS
     # ═══════════════════════════════════════════════════════════════

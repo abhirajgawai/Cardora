@@ -25,6 +25,7 @@ interface HeroInsightCardProps {
   insight: Insight;
   onDismiss?: (id: string) => void;
   onComplete?: (id: string) => void;
+  onViewDetails?: () => void;
 }
 
 const priorityColors = {
@@ -39,7 +40,7 @@ const priorityBadgeColors = {
   low: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
 };
 
-export default function HeroInsightCard({ insight, onDismiss, onComplete }: HeroInsightCardProps) {
+export default function HeroInsightCard({ insight, onDismiss, onComplete, onViewDetails }: HeroInsightCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const priority = getPriority(insight.impact_score);
   const isActive = !insight.dismissed_at;
@@ -126,6 +127,19 @@ export default function HeroInsightCard({ insight, onDismiss, onComplete }: Hero
               </div>
             </div>
           </div>
+        )}
+
+        {/* View Details Button */}
+        {onViewDetails && (
+          <button
+            onClick={onViewDetails}
+            className="mt-4 w-full px-4 py-3 bg-primary hover:bg-primary/90 text-white font-semibold rounded-lg transition-all flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl"
+          >
+            <span>View Linked Transactions</span>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </button>
         )}
       </div>
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { getCurrentUser } from '@/lib/api/auth';
 import { getCards } from '@/lib/api/cards';
 import { getTransactions } from '@/lib/api/transactions';
@@ -141,18 +142,24 @@ export default function DashboardPage() {
       setInsightsGenerating(true);
       const response = await generateInsights();
 
-      // Show success message
+      // Show success message with toast
       if (response.generated > 0) {
-        alert(`Generated ${response.generated} new insight(s)!`);
+        toast.success('Insights Generated', {
+          description: `Successfully generated ${response.generated} new insight(s)`,
+        });
         // Refresh insights list
         const updatedInsights = await getInsights(false);
         setInsights(updatedInsights.insights);
       } else {
-        alert(response.message);
+        toast.info('No New Insights', {
+          description: response.message || 'No new insights generated based on your spending patterns.',
+        });
       }
     } catch (error: any) {
       console.error('Failed to generate insights:', error);
-      alert(error.response?.data?.detail || 'Failed to generate insights. Make sure you have uploaded statements with transactions.');
+      toast.error('Generation Failed', {
+        description: error.response?.data?.detail || 'Failed to generate insights. Make sure you have uploaded statements with transactions.',
+      });
     } finally {
       setInsightsGenerating(false);
     }
@@ -164,9 +171,14 @@ export default function DashboardPage() {
       await dismissInsight(insightId);
       // Remove from local state
       setInsights(prev => prev.filter(i => i.id !== insightId));
+      toast.success('Insight Dismissed', {
+        description: 'This insight has been removed from your dashboard.',
+      });
     } catch (error) {
       console.error('Failed to dismiss insight:', error);
-      alert('Failed to dismiss insight');
+      toast.error('Dismiss Failed', {
+        description: 'Failed to dismiss insight. Please try again.',
+      });
     }
   };
 
@@ -275,6 +287,7 @@ export default function DashboardPage() {
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1; // getMonth() returns 0-11
+    const currentDay = now.getDate();
 
     // Generate all months from oldest to current month
     const allMonths: { year: number; month: number }[] = [];
@@ -299,10 +312,41 @@ export default function DashboardPage() {
       statementPeriods.map(p => `${p.year}-${String(p.month).padStart(2, '0')}`)
     );
 
-    return allMonths.filter(
-      m => !uploadedKeys.has(`${m.year}-${String(m.month).padStart(2, '0')}`)
-    );
-  }, [statementPeriods]);
+    // Get the earliest statement day from cards (if any)
+    const statementDay = cards.length > 0
+      ? cards.map(c => c.statement_day ? parseInt(c.statement_day) : null)
+              .filter((day): day is number => day !== null)
+              .sort((a, b) => a - b)[0]
+      : null;
+
+    return allMonths
+      .filter(m => !uploadedKeys.has(`${m.year}-${String(m.month).padStart(2, '0')}`))
+      .map(m => {
+        // Determine if the statement should exist yet
+        let statementGenerated = true;
+        let statementGenerationDate: Date | null = null;
+
+        if (statementDay !== null && statementDay !== undefined) {
+          // Calculate the statement generation date for this missing month
+          // Statement for month X is generated on day Y of month X+1
+          const nextMonth = m.month === 12 ? 1 : m.month + 1;
+          const nextYear = m.month === 12 ? m.year + 1 : m.year;
+
+          statementGenerationDate = new Date(nextYear, nextMonth - 1, statementDay);
+
+          // Check if statement generation date has passed
+          statementGenerated = now >= statementGenerationDate;
+        }
+
+        return {
+          year: m.year,
+          month: m.month,
+          statementGenerated,
+          statementGenerationDate,
+          statementDay,
+        };
+      });
+  }, [statementPeriods, cards]);
 
   if (loading) {
     return (
@@ -502,27 +546,33 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* AI Insights Section */}
+          {/* AI Insights Section - Hero Card Only */}
           {insights.length > 0 && (
             <div className="mb-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h2 className="text-xl font-bold text-foreground">AI Insights</h2>
-                  <p className="text-sm text-muted-foreground">Personalized recommendations based on your spending patterns</p>
+                  <h2 className="text-xl font-bold text-foreground">Top Insight</h2>
+                  <p className="text-sm text-muted-foreground">Most important recommendation based on your spending</p>
                 </div>
-                <div className="px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-semibold">
-                  {insights.length} Active
-                </div>
+                {insights.length > 1 && (
+                  <button
+                    onClick={() => router.push('/insights')}
+                    className="px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary font-semibold rounded-lg transition-colors flex items-center space-x-2"
+                  >
+                    <span>View All ({insights.length})</span>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                )}
               </div>
-              <div className="space-y-4">
-                {insights.map((insight, index) => (
-                  <div key={insight.id} className="animate-slide-in" style={{ animationDelay: `${0.6 + index * 0.1}s` }}>
-                    <HeroInsightCard
-                      insight={insight}
-                      onDismiss={() => handleDismissInsight(insight.id)}
-                    />
-                  </div>
-                ))}
+              {/* Show only the first (most recent/important) insight */}
+              <div className="animate-slide-in" style={{ animationDelay: '0.6s' }}>
+                <HeroInsightCard
+                  insight={insights[0]}
+                  onDismiss={() => handleDismissInsight(insights[0].id)}
+                  onViewDetails={() => router.push('/insights')}
+                />
               </div>
             </div>
           )}
@@ -729,37 +779,71 @@ export default function DashboardPage() {
               <div className="p-5">
                 {missingPeriods.length > 0 ? (
                   <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                    {missingPeriods.map((period, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between p-3 rounded-lg bg-amber-500/5 border border-amber-500/20 hover:bg-amber-500/10 transition-colors"
-                      >
-                        <div className="flex items-center space-x-3 flex-1">
-                          <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
-                            <svg className="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                            </svg>
-                          </div>
-                          <div>
-                            <p className="text-sm font-semibold text-foreground">
-                              {new Date(period.year, period.month - 1, 1).toLocaleDateString('en-US', {
-                                month: 'long',
-                                year: 'numeric'
-                              })}
-                            </p>
-                            <p className="text-xs text-amber-600">
-                              Statement not uploaded
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => router.push('/upload')}
-                          className="px-3 py-1 rounded-full bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold transition-colors flex-shrink-0"
+                    {missingPeriods.map((period, index) => {
+                      // Determine styling based on whether statement is generated
+                      const isPending = !period.statementGenerated && period.statementGenerationDate;
+                      const bgColor = isPending ? 'bg-blue-500/5' : 'bg-amber-500/5';
+                      const borderColor = isPending ? 'border-blue-500/20' : 'border-amber-500/20';
+                      const hoverColor = isPending ? 'hover:bg-blue-500/10' : 'hover:bg-amber-500/10';
+                      const iconBg = isPending ? 'bg-blue-500/10' : 'bg-amber-500/10';
+                      const iconColor = isPending ? 'text-blue-500' : 'text-amber-500';
+                      const textColor = isPending ? 'text-blue-600' : 'text-amber-600';
+                      const buttonBg = isPending ? 'bg-blue-500 hover:bg-blue-600' : 'bg-amber-500 hover:bg-amber-600';
+
+                      return (
+                        <div
+                          key={index}
+                          className={`flex items-center justify-between p-3 rounded-lg ${bgColor} border ${borderColor} ${hoverColor} transition-colors`}
                         >
-                          Upload
-                        </button>
-                      </div>
-                    ))}
+                          <div className="flex items-center space-x-3 flex-1">
+                            <div className={`w-10 h-10 rounded-xl ${iconBg} flex items-center justify-center`}>
+                              {isPending ? (
+                                // Clock icon for pending statements
+                                <svg className={`w-5 h-5 ${iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                              ) : (
+                                // Warning icon for missing statements
+                                <svg className={`w-5 h-5 ${iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-foreground">
+                                {new Date(period.year, period.month - 1, 1).toLocaleDateString('en-US', {
+                                  month: 'long',
+                                  year: 'numeric'
+                                })}
+                              </p>
+                              <p className={`text-xs ${textColor}`}>
+                                {period.statementGenerated ? (
+                                  // Statement generation date has passed
+                                  'Statement not uploaded'
+                                ) : period.statementGenerationDate ? (
+                                  // Statement hasn't been generated yet
+                                  `Statement will be generated on ${period.statementGenerationDate.toLocaleDateString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric'
+                                  })}`
+                                ) : (
+                                  // No statement day configured
+                                  'Statement not uploaded'
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => router.push('/upload')}
+                            className={`px-3 py-1 rounded-full ${buttonBg} text-white text-xs font-semibold transition-colors flex-shrink-0`}
+                            disabled={isPending}
+                            title={isPending ? "Statement not yet generated by bank" : "Upload statement"}
+                          >
+                            {isPending ? 'Pending' : 'Upload'}
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : statementPeriods.length > 0 ? (
                   <div className="text-center py-8">

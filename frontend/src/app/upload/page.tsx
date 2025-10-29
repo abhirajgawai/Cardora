@@ -9,7 +9,7 @@ import { extractErrorMessage, isAuthError } from '@/lib/utils/errorHandler';
 import Sidebar from '@/components/layout/Sidebar';
 import Footer from '@/components/layout/Footer';
 import UploadZone from '@/components/upload/UploadZone';
-import UploadProgress from '@/components/upload/UploadProgress';
+import EnhancedUploadProgress from '@/components/upload/EnhancedUploadProgress';
 import UploadResults from '@/components/upload/UploadResults';
 
 type UploadStage = 'idle' | 'uploading' | 'extracting' | 'processing' | 'complete' | 'error';
@@ -176,7 +176,7 @@ export default function UploadPage() {
 
             {/* Upload Progress */}
             {selectedFile && ['uploading', 'extracting', 'processing', 'complete'].includes(uploadStage) && (
-              <UploadProgress
+              <EnhancedUploadProgress
                 fileName={selectedFile.name}
                 fileSize={selectedFile.size}
                 progress={uploadProgress}

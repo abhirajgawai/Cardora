@@ -2,8 +2,9 @@
 
 import { motion } from 'framer-motion';
 import { ArrowRight, CreditCard, Sparkles, Shield, TrendingUp, Zap, Brain, FileText, BarChart3, Lock, Upload, Eye, X, Check, ChevronDown, ChevronUp } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 const FAQItem = ({ question, answer, isOpen, onClick }: { question: string; answer: string; isOpen: boolean; onClick: () => void }) => {
   return (
@@ -38,6 +39,17 @@ const FAQItem = ({ question, answer, isOpen, onClick }: { question: string; answ
 
 export default function Home() {
   const [openFAQ, setOpenFAQ] = useState<number | null>(null);
+  const router = useRouter();
+
+  // Redirect logged-in users to dashboard
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('access_token');
+      if (token) {
+        router.push('/dashboard');
+      }
+    }
+  }, [router]);
 
   return (
     <div className="min-h-screen fintech-bg">

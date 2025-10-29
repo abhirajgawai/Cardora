@@ -226,8 +226,18 @@ async def upload_statement(
         statement_date = datetime.strptime(card_metadata["statement_date"], "%Y-%m-%d")
         statement_month = statement_date.month
         statement_year = statement_date.year
+        statement_day = statement_date.day
 
         print(f"[INFO] Statement period: {statement_month}/{statement_year}")
+        print(f"[INFO] Statement date: Day {statement_day} of the month")
+
+        # Update card's statement_day if not already set or if different
+        # This helps users see when future statements will be generated
+        if card.statement_day != str(statement_day):
+            card.statement_day = str(statement_day)
+            db.commit()
+            db.refresh(card)
+            print(f"[INFO] Updated card statement_day to: {statement_day}")
 
     except Exception as e:
         if card_created:

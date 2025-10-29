@@ -24,6 +24,13 @@ const priorityColors = {
   low: 'text-blue-500 bg-blue-500/10 border-blue-500/20',
 };
 
+// Helper to map impact_score to priority
+function getPriority(impact_score: number): 'high' | 'medium' | 'low' {
+  if (impact_score >= 8) return 'high';
+  if (impact_score >= 5) return 'medium';
+  return 'low';
+}
+
 export default function InsightsList({ insights, onDismiss, onComplete, compact = false }: InsightsListProps) {
   if (insights.length === 0) {
     return (
@@ -48,7 +55,7 @@ export default function InsightsList({ insights, onDismiss, onComplete, compact 
             className={`fintech-card ${compact ? 'p-4' : 'p-5'} card-hover relative`}
           >
             <div className="flex items-start gap-4">
-              <div className={`p-2.5 rounded-lg ${priorityColors[insight.priority]} border flex-shrink-0`}>
+              <div className={`p-2.5 rounded-lg ${priorityColors[getPriority(insight.impact_score)]} border flex-shrink-0`}>
                 <IconComponent className="w-4 h-4" />
               </div>
 
@@ -64,7 +71,7 @@ export default function InsightsList({ insights, onDismiss, onComplete, compact 
                   </div>
 
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    {onComplete && insight.status === 'active' && (
+                    {onComplete && !insight.dismissed_at && (
                       <button
                         onClick={() => onComplete(insight.id)}
                         className="p-1.5 rounded-lg bg-green-500/10 text-green-500 hover:bg-green-500/20 transition-colors"
@@ -86,10 +93,10 @@ export default function InsightsList({ insights, onDismiss, onComplete, compact 
                 </div>
 
                 {/* Additional Data */}
-                {!compact && insight.data && Object.keys(insight.data).length > 0 && (
+                {!compact && (insight as any).data && Object.keys((insight as any).data).length > 0 && (
                   <div className="mt-3 p-3 rounded-lg bg-muted/30 border border-border">
                     <div className="grid grid-cols-2 gap-2">
-                      {Object.entries(insight.data).slice(0, 4).map(([key, value]) => (
+                      {Object.entries((insight as any).data).slice(0, 4).map(([key, value]) => (
                         <div key={key}>
                           <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
                             {key.replace(/_/g, ' ')}
@@ -107,8 +114,8 @@ export default function InsightsList({ insights, onDismiss, onComplete, compact 
 
                 {/* Metadata */}
                 <div className="flex items-center gap-3 mt-3">
-                  <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${priorityColors[insight.priority]}`}>
-                    {insight.priority.toUpperCase()}
+                  <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${priorityColors[getPriority(insight.impact_score)]}`}>
+                    {getPriority(insight.impact_score).toUpperCase()}
                   </span>
                   <span className="text-xs text-muted-foreground">
                     {new Date(insight.created_at).toLocaleDateString('en-US', {
@@ -116,9 +123,9 @@ export default function InsightsList({ insights, onDismiss, onComplete, compact 
                       day: 'numeric',
                     })}
                   </span>
-                  {insight.status === 'completed' && (
+                  {insight.potential_savings && insight.potential_savings > 0 && (
                     <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-green-500/10 text-green-500 border border-green-500/20">
-                      COMPLETED
+                      ${insight.potential_savings.toFixed(2)} SAVINGS
                     </span>
                   )}
                 </div>

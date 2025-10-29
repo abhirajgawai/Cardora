@@ -12,13 +12,14 @@ Algorithm:
 Performance: O(n) where n = number of transactions
 """
 
-from datetime import datetime
-from typing import List, Optional, Dict, Any
+from datetime import datetime, date
+from typing import List, Optional, Dict, Any, Tuple
 from decimal import Decimal
 from sqlalchemy.orm import Session
 
 from app.models.transaction import Transaction
 from app.models.insight import Insight, InsightTransaction
+from app.config.insights_config import WeekendSpendingConfig
 
 
 class WeekendSpendingService:
@@ -29,26 +30,30 @@ class WeekendSpendingService:
         "You spend 45% more on weekends - $180 vs $124 on weekdays"
     """
 
-    THRESHOLD_PERCENTAGE = 10  # Generate insight if weekend spending is 10%+ higher
-    MIN_TRANSACTIONS = 10      # Need at least 10 transactions to be statistically relevant
-
     def __init__(self, db: Session):
         self.db = db
+        self.config = WeekendSpendingConfig
 
-    def generate_insight(self, user_id: str, transactions: List[Transaction]) -> Optional[Dict[str, Any]]:
+    def generate_insight(
+        self,
+        user_id: str,
+        transactions: List[Transaction],
+        date_range: Optional[Tuple[date, date]] = None
+    ) -> Optional[Dict[str, Any]]:
         """
         Generate weekend spending insight from transactions
 
         Args:
             user_id: UUID of the user
             transactions: List of user transactions (typically last 3-6 months)
+            date_range: Optional tuple of (earliest_date, latest_date) for the analysis period
 
         Returns:
             Dict with insight data or None if no significant pattern detected
             {
                 "insight_type": "weekend_spending",
                 "title": "You spend 45% more on weekends",
-                "description": "Over the past 3 months, your weekend spending averages...",
+                "description": "From June 2025 to August 2025, your weekend spending...",
                 "impact_score": 7,
                 "potential_savings": 50.00,
                 "transaction_ids": [list of transaction UUIDs]
@@ -58,12 +63,12 @@ class WeekendSpendingService:
         print(f"\n{'='*60}")
         print(f"[WEEKEND INSIGHTS] Starting analysis")
         print(f"[WEEKEND INSIGHTS] Total transactions received: {len(transactions)}")
-        print(f"[WEEKEND INSIGHTS] Minimum required: {self.MIN_TRANSACTIONS}")
+        print(f"[WEEKEND INSIGHTS] Minimum required: {self.config.MIN_TRANSACTIONS}")
         print(f"{'='*60}\n")
 
         # Need enough data to make meaningful analysis
-        if len(transactions) < self.MIN_TRANSACTIONS:
-            print(f"[WEEKEND INSIGHTS] NOT ENOUGH TRANSACTIONS - Need {self.MIN_TRANSACTIONS}, got {len(transactions)}")
+        if len(transactions) < self.config.MIN_TRANSACTIONS:
+            print(f"[WEEKEND INSIGHTS] NOT ENOUGH TRANSACTIONS - Need {self.config.MIN_TRANSACTIONS}, got {len(transactions)}")
             return None
 
         # Separate weekend vs weekday transactions
@@ -126,10 +131,10 @@ class WeekendSpendingService:
         print(f"  Weekend avg per transaction: ${weekend_avg:.2f}")
         print(f"  Weekday avg per transaction: ${weekday_avg:.2f}")
         print(f"  Percentage higher: {percentage_higher:.2f}%")
-        print(f"  Threshold: {self.THRESHOLD_PERCENTAGE}%")
+        print(f"  Threshold: {self.config.THRESHOLD_PERCENTAGE}%")
 
         # Only generate insight if weekend spending is significantly higher
-        if percentage_higher < self.THRESHOLD_PERCENTAGE:
+        if percentage_higher < self.config.THRESHOLD_PERCENTAGE:
             print(f"  Result: NO INSIGHT (below threshold)")
             return None
 
@@ -151,7 +156,8 @@ class WeekendSpendingService:
                 weekday_total=weekday_total,
                 weekend_count=len(weekend_transactions),
                 weekday_count=len(weekday_transactions),
-                percentage_higher=int(percentage_higher)
+                percentage_higher=int(percentage_higher),
+                date_range=date_range
             ),
             "impact_score": self._calculate_impact_score(percentage_higher, potential_monthly_savings),
             "potential_savings": float(potential_monthly_savings),
@@ -164,15 +170,35 @@ class WeekendSpendingService:
         weekday_total: Decimal,
         weekend_count: int,
         weekday_count: int,
-        percentage_higher: int
+        percentage_higher: int,
+        date_range: Optional[Tuple[date, date]] = None
     ) -> str:
-        """Generate human-friendly description"""
+        """Generate human-friendly description with specific date range"""
 
         weekend_avg = weekend_total / weekend_count
         weekday_avg = weekday_total / weekday_count
 
+        # Format date range if provided
+        if date_range:
+            start_date, end_date = date_range
+            # Format as "Month Year" (e.g., "July 2025")
+            start_str = start_date.strftime("%B %Y")
+            end_str = end_date.strftime("%B %Y")
+
+            # If same month and year, show as single month
+            if start_str == end_str:
+                time_period = f"In {start_str}"
+            # If same year, show "June to August 2025"
+            elif start_date.year == end_date.year:
+                time_period = f"From {start_date.strftime('%B')} to {end_date.strftime('%B %Y')}"
+            # Different years, show full dates
+            else:
+                time_period = f"From {start_str} to {end_str}"
+        else:
+            time_period = "Over the past few months"
+
         return (
-            f"Over the past few months, you've spent ${weekend_total:,.2f} across {weekend_count} "
+            f"{time_period}, you've spent ${weekend_total:,.2f} across {weekend_count} "
             f"weekend transactions (avg ${weekend_avg:.2f} per transaction), compared to "
             f"${weekday_total:,.2f} across {weekday_count} weekday transactions "
             f"(avg ${weekday_avg:.2f} per transaction). That's {percentage_higher}% more on weekends! "

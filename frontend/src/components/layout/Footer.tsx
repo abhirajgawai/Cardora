@@ -109,9 +109,8 @@ export default function Footer() {
             © {currentYear} Cardora. All rights reserved.
           </p>
           <div className="flex items-center space-x-2">
-            <span className="text-xs text-muted-foreground">Powered by</span>
-            <span className="text-xs font-semibold gradient-indigo-purple bg-clip-text text-transparent">
-              AI Technology
+            <span className="text-xs font-semibold text-foreground">
+              Intelligent spending, effortless tracking
             </span>
           </div>
         </div>

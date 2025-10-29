@@ -88,6 +88,12 @@ class CreditCardResponse(BaseModel):
         examples=[10000.00]
     )
 
+    statement_day: Optional[str] = Field(
+        None,
+        description="Day of month when statement is generated (1-31)",
+        examples=["15", "16", "1"]
+    )
+
     is_active: bool = Field(
         ...,
         description="Whether the card is active",
@@ -118,6 +124,7 @@ class CreditCardResponse(BaseModel):
                 "last_four_digits": "1234",
                 "card_type": "Visa",
                 "credit_limit": 10000.00,
+                "statement_day": "15",
                 "is_active": True,
                 "created_at": "2024-10-22T10:30:00Z",
                 "updated_at": "2024-10-22T10:30:00Z"
@@ -210,6 +217,7 @@ Authorization: Bearer <token>
         "last_four_digits": "1234",
         "card_type": "Visa",
         "credit_limit": 10000.00,
+        "statement_day": "15",
         "is_active": true,
         "created_at": "2024-10-22T10:30:00Z",
         "updated_at": "2024-10-22T10:30:00Z"
@@ -222,6 +230,7 @@ Authorization: Bearer <token>
         "last_four_digits": "5678",
         "card_type": "Mastercard",
         "credit_limit": 5000.00,
+        "statement_day": "16",
         "is_active": true,
         "created_at": "2024-10-23T14:00:00Z",
         "updated_at": "2024-10-23T14:00:00Z"
@@ -248,6 +257,7 @@ Authorization: Bearer <token>
     "last_four_digits": "1234",
     "card_type": "Visa",
     "credit_limit": 15000.00,
+    "statement_day": "15",
     "is_active": true,
     "created_at": "2024-10-22T10:30:00Z",
     "updated_at": "2024-10-23T15:30:00Z"

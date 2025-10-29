@@ -10,6 +10,7 @@ export interface CreditCard {
   last_four_digits: string;
   card_type: string | null;
   credit_limit: number | null;
+  statement_day: string | null;  // Day of month when statement is generated (1-31)
   is_active: boolean;
   created_at: string;
   updated_at: string;
