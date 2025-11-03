@@ -2,35 +2,121 @@
 
 A full-stack application for analyzing credit card statements using AI, built with FastAPI and Next.js.
 
-## Tech Stack
+## ✨ Features
 
-- **Backend:** Python 3.11+ with FastAPI
-- **Frontend:** Next.js 16 with React 19 and TypeScript
-- **Database:** PostgreSQL
-- **AI:** Google Gemini API
-- **Migrations:** Alembic (Python)
+- 📊 **Multi-Card Analytics** - Analyze spending across multiple credit cards
+- 📄 **AI-Powered PDF Processing** - Extract transactions from PDF statements using Google Gemini
+- 🤖 **Smart Insights** - AI-generated spending insights and pattern detection
+- 📈 **Comprehensive Analytics** - Monthly trends, category breakdowns, and comparisons
+- 🎯 **Transaction Management** - Categorization, filtering, and bulk operations
+- 🔐 **Secure Authentication** - JWT-based auth with password reset
+- ⚡ **Payment Alerts** - Never miss a credit card payment
 
-## Project Structure
+## 🚀 Tech Stack
+
+### Backend
+- **Framework:** Python 3.11+ with FastAPI
+- **Database:** PostgreSQL with SQLAlchemy ORM
+- **Migrations:** Alembic
+- **AI:** Google Gemini API for PDF processing
+- **Authentication:** JWT with bcrypt
+
+### Frontend
+- **Framework:** Next.js 16 with React 19
+- **Language:** TypeScript
+- **UI Library:** shadcn/ui with TailwindCSS
+- **State Management:** React Context API
+- **HTTP Client:** Axios
+
+## 📁 Project Structure
 
 ```
 Cardora/
-├── app/                     # Backend (Python/FastAPI)
-│   ├── main.py              # Application entry point
-│   ├── routers/             # API routes
-│   ├── models/              # Database models
-│   └── services/            # Business logic
-├── frontend/                # Frontend (Next.js)
+├── app/                          # Backend (FastAPI)
+│   ├── core/                     # Core infrastructure
+│   │   ├── config.py             # App configuration
+│   │   ├── database.py           # Database connection
+│   │   ├── email_service.py      # Email functionality
+│   │   ├── gemini_service.py     # AI PDF processing
+│   │   └── seed_data.py          # Database seeding
+│   │
+│   ├── features/                 # Feature-based modules
+│   │   ├── analytics/            # Spending analytics
+│   │   ├── auth/                 # Authentication & users
+│   │   ├── cards/                # Credit card management
+│   │   ├── categories/           # Transaction categories
+│   │   ├── insights/             # AI insights & alerts
+│   │   ├── statements/           # PDF statement processing
+│   │   └── transactions/         # Transaction CRUD
+│   │
+│   ├── shared/                   # Shared configurations
+│   └── main.py                   # Application entry point
+│
+├── frontend/                     # Frontend (Next.js)
 │   ├── src/
-│   │   ├── app/             # Next.js app router pages
-│   │   └── components/      # React components
+│   │   ├── app/                  # Next.js App Router pages
+│   │   │   ├── analytics/        # Analytics page
+│   │   │   ├── cards/            # Cards management
+│   │   │   ├── dashboard/        # Dashboard
+│   │   │   ├── insights/         # Insights page
+│   │   │   ├── login/            # Login page
+│   │   │   ├── register/         # Registration
+│   │   │   ├── transactions/     # Transactions page
+│   │   │   └── upload/           # Statement upload
+│   │   │
+│   │   ├── features/             # Feature modules (mirrors backend)
+│   │   │   ├── analytics/        # Analytics types & logic
+│   │   │   ├── auth/             # Auth API & models
+│   │   │   ├── cards/            # Cards API & models
+│   │   │   ├── insights/         # Insights components
+│   │   │   ├── statements/       # Upload components
+│   │   │   └── transactions/     # Transaction logic
+│   │   │
+│   │   └── shared/               # Shared resources
+│   │       ├── components/       # Reusable components
+│   │       ├── contexts/         # React contexts
+│   │       ├── lib/              # Utilities & API client
+│   │       └── types/            # Shared types
+│   │
 │   └── package.json
-├── alembic/                 # Database migrations
-│   └── versions/            # Migration files
-├── requirements.txt         # Python dependencies
-└── .env                     # Environment variables
+│
+├── docs/                         # Documentation
+│   ├── architecture/             # System architecture docs
+│   ├── features/                 # Feature-specific guides
+│   ├── guides/                   # How-to guides
+│   └── planning/                 # Roadmaps & progress
+│
+├── alembic/                      # Database migrations
+│   └── versions/                 # Migration files
+│
+├── tests/                        # Backend tests
+├── uploads/                      # Uploaded PDFs (gitignored)
+├── requirements.txt              # Python dependencies
+└── .env                          # Environment variables
 ```
 
-## Complete Setup Guide for New Developers
+> 📖 **Detailed Architecture:** See [docs/architecture/PROJECT_STRUCTURE.md](docs/architecture/PROJECT_STRUCTURE.md) for comprehensive architecture documentation.
+
+## 🏗️ Architecture Principles
+
+Cardora follows a **feature-based architecture** for both backend and frontend:
+
+### Benefits
+- ✅ **Colocation** - All code for a feature lives together
+- ✅ **Consistency** - Backend and frontend mirror each other
+- ✅ **Discoverability** - Easy to find feature-related code
+- ✅ **Scalability** - Independent feature development
+
+### Pattern
+Each feature contains:
+- `models.py` - Database models (backend)
+- `schemas.py` - API DTOs (backend)
+- `router.py` - API endpoints (backend)
+- `api/` - API client (frontend)
+- `components/` - React components (frontend)
+- `types/` - TypeScript types (frontend)
+
+## 🚀 Complete Setup Guide for New Developers
 
 ### Prerequisites
 
@@ -56,7 +142,7 @@ Before you begin, install these tools:
 ### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/Cardora.git
+git clone https://github.com/abhirajgawai/Cardora.git
 cd Cardora
 ```
 
@@ -111,6 +197,15 @@ GEMINI_API_KEY=your_gemini_api_key_here
 SECRET_KEY=your-secret-key-here-generate-a-strong-one
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+# Email Settings (for password reset)
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+
+# Frontend URL (for email links)
+FRONTEND_URL=http://localhost:3000
 ```
 
 #### 2.4 Setup PostgreSQL Database
@@ -145,7 +240,22 @@ alembic current
 alembic upgrade head
 ```
 
-This will create all necessary tables (users, credit_cards, transactions, insights, etc.)
+This will create all necessary tables:
+- `users` - User accounts
+- `credit_cards` - Credit card records
+- `statements` - Uploaded statements
+- `transactions` - Transaction records
+- `categories` - Transaction categories (21 default + custom)
+- `insights` - AI-generated insights
+- `payment_alerts` - Payment due alerts
+
+#### 2.6 Seed Default Categories (Optional)
+
+```bash
+python app/core/seed_data.py
+```
+
+This adds 21 default transaction categories to your database.
 
 ### Step 3: Frontend Setup (Next.js)
 
@@ -156,9 +266,9 @@ cd frontend
 npm install
 ```
 
-#### 3.2 Configure Frontend Environment (Optional)
+#### 3.2 Configure Frontend Environment
 
-The frontend connects to the backend at `http://localhost:8000` by default. If you need to change this, you can create a `.env.local` file:
+Create a `.env.local` file:
 
 ```bash
 # frontend/.env.local
@@ -175,16 +285,14 @@ You need to run both the backend and frontend simultaneously. Open **two termina
 # Make sure you're in the Cardora root directory
 # Make sure virtual environment is activated (venv)
 
-# Windows:
-python -m uvicorn app.main:app --reload
-
-# Mac/Linux:
-uvicorn app.main:app --reload
+# Run development server
+python -m uvicorn app.main:app --reload --port 8000
 ```
 
 Backend will be available at:
-- API: http://localhost:8000
-- API Docs: http://localhost:8000/docs
+- **API:** http://localhost:8000
+- **API Docs (Swagger):** http://localhost:8000/docs
+- **API Docs (ReDoc):** http://localhost:8000/redoc
 
 #### Terminal 2: Run Frontend
 
@@ -197,16 +305,39 @@ npm run dev
 ```
 
 Frontend will be available at:
-- App: http://localhost:3000
+- **App:** http://localhost:3000
 
 ### Step 5: Verify Everything Works
 
 1. Open http://localhost:3000 in your browser
 2. You should see the Cardora landing page
 3. Open http://localhost:8000/docs to see the API documentation
-4. Try the health check endpoint: http://localhost:8000/health
+4. Try registering a new account
+5. Upload a credit card statement PDF
 
-## Common Commands Reference
+## 📚 Documentation
+
+Comprehensive documentation is available in the `/docs` folder:
+
+### Architecture
+- [PROJECT_STRUCTURE.md](docs/architecture/PROJECT_STRUCTURE.md) - Complete architecture guide
+- [DESIGN_SYSTEM.md](docs/architecture/DESIGN_SYSTEM.md) - UI/UX design system
+- [RESTRUCTURING_PLAN.md](docs/architecture/RESTRUCTURING_PLAN.md) - Migration history
+
+### Features
+- [AI_INSIGHTS_IMPLEMENTATION_PLAN.md](docs/features/AI_INSIGHTS_IMPLEMENTATION_PLAN.md) - Insights system
+- [PDF_EXTRACTION_GUIDE.md](docs/features/PDF_EXTRACTION_GUIDE.md) - PDF processing guide
+- [INSIGHTS_CONFIGURATION.md](docs/features/INSIGHTS_CONFIGURATION.md) - Insight configuration
+
+### Guides
+- [MIGRATIONS_GUIDE.md](docs/guides/MIGRATIONS_GUIDE.md) - Database migration guide
+
+### Planning
+- [FRONTEND_ROADMAP.md](docs/planning/FRONTEND_ROADMAP.md) - Frontend development roadmap
+- [PROGRESS_TRACKER.md](docs/planning/PROGRESS_TRACKER.md) - Project progress
+- [DESIGN_V2_CHANGELOG.md](docs/planning/DESIGN_V2_CHANGELOG.md) - Design updates
+
+## 🔧 Common Commands Reference
 
 ### Backend (Python)
 
@@ -223,16 +354,21 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # Run backend server
-python -m uvicorn app.main:app --reload
+python -m uvicorn app.main:app --reload --port 8000
 
 # Database migrations
-alembic current              # Check current migration
-alembic upgrade head         # Apply all migrations
-alembic downgrade -1         # Rollback last migration
-alembic revision --autogenerate -m "description"  # Create new migration
+alembic current                                      # Check current migration
+alembic upgrade head                                 # Apply all migrations
+alembic downgrade -1                                 # Rollback last migration
+alembic revision --autogenerate -m "description"     # Create new migration
+
+# Seed default categories
+python app/core/seed_data.py
 
 # Run tests
 pytest
+pytest tests/test_api.py        # Run specific test
+pytest --cov=app                # Run with coverage
 
 # Code formatting
 black app/
@@ -258,9 +394,12 @@ npm start
 
 # Lint code
 npm run lint
+
+# Type checking
+npm run type-check
 ```
 
-## Troubleshooting
+## 🐛 Troubleshooting
 
 ### Database Connection Issues
 
@@ -323,21 +462,52 @@ taskkill /PID <process_id> /F
 lsof -ti:8000 | xargs kill -9
 ```
 
-## Project Architecture
+### Frontend Build Errors
+
+**Problem:** TypeScript errors or module not found
+
+**Solution:**
+```bash
+cd frontend
+rm -rf .next node_modules
+npm install
+npm run dev
+```
+
+## 🏛️ Project Architecture
 
 ### Backend (FastAPI)
-- **app/main.py** - Application entry point, CORS and middleware setup
-- **app/routers/** - API endpoints organized by feature
-- **app/models/** - SQLAlchemy database models and Pydantic schemas
-- **app/services/** - Business logic and external integrations
-- **alembic/versions/** - Database migration files
+
+**Feature-Based Organization:**
+- Each feature is self-contained in `app/features/`
+- Features include: `auth`, `cards`, `categories`, `transactions`, `statements`, `analytics`, `insights`
+- Each feature has its own `models.py`, `schemas.py`, and `router.py`
+- Core infrastructure in `app/core/`
+- Shared configurations in `app/shared/`
+
+**Key Files:**
+- `app/main.py` - Application entry point, CORS and middleware setup
+- `app/core/database.py` - Database connection and session management
+- `app/core/gemini_service.py` - AI-powered PDF processing
+- `app/features/*/router.py` - API endpoints for each feature
+- `alembic/versions/` - Database migration files
 
 ### Frontend (Next.js)
-- **src/app/** - Next.js 13+ App Router pages
-- **src/components/** - Reusable React components
-- **src/lib/** - Utility functions and API client
 
-## For Developers from Other Backgrounds
+**Feature-Based Organization:**
+- Mirrors backend structure in `src/features/`
+- Each feature has its own `api/`, `components/`, `models/`, and `types/`
+- Pages in `src/app/` using Next.js App Router
+- Shared resources in `src/shared/`
+
+**Key Directories:**
+- `src/app/` - Next.js 14+ App Router pages
+- `src/features/` - Feature-specific code (mirrors backend)
+- `src/shared/components/` - Reusable React components
+- `src/shared/lib/` - Utility functions and API client
+- `src/shared/types/` - Shared TypeScript types
+
+## 🌍 For Developers from Other Backgrounds
 
 ### Coming from .NET?
 
@@ -347,9 +517,10 @@ lsof -ti:8000 | xargs kill -9
 | `dotnet restore` | `pip install -r requirements.txt` | `npm install` |
 | `.csproj` | `requirements.txt` | `package.json` |
 | `Program.cs` | `app/main.py` | `src/app/layout.tsx` |
-| Controllers/ | routers/ | `src/app/*/route.ts` |
+| Controllers/ | features/*/router.py | `src/app/*/route.ts` |
 | Entity Framework | SQLAlchemy + Alembic | N/A (uses backend) |
 | `[HttpGet]` | `@router.get()` | `export async function GET()` |
+| Clean Architecture | Feature-based modules | Feature-based modules |
 
 ### Coming from Django?
 
@@ -358,16 +529,26 @@ lsof -ti:8000 | xargs kill -9
 | `manage.py runserver` | `uvicorn app.main:app --reload` |
 | `manage.py migrate` | `alembic upgrade head` |
 | `manage.py makemigrations` | `alembic revision --autogenerate` |
-| `views.py` | `routers/` |
+| `views.py` | `features/*/router.py` |
 | Django ORM | SQLAlchemy |
+| `settings.py` | `core/config.py` |
 
-## Contributing
+## 🤝 Contributing
 
-1. Create a new branch for your feature
-2. Make your changes
+1. Create a new branch for your feature: `git checkout -b feature/your-feature-name`
+2. Make your changes following the feature-based architecture
 3. Run tests and linting
-4. Create a pull request
+4. Create a pull request with a clear description
 
-## License
+### Code Style
+- **Backend:** Follow PEP 8, use `black` for formatting
+- **Frontend:** Use Prettier, follow TypeScript best practices
+- **Commits:** Use conventional commits format
+
+## 📄 License
 
 MIT
+
+---
+
+**Built with ❤️ using FastAPI, Next.js, and Google Gemini AI**
