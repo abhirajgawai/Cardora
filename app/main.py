@@ -8,7 +8,15 @@ load_dotenv()  # IMPORTANT: Must be called before importing app modules that use
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import auth, users, credit_cards, categories, statements, transactions, analytics, insights
+
+# Import routers from new feature-based structure
+from app.features.auth import auth_router, users_router
+from app.features.cards.router import router as cards_router
+from app.features.categories.router import router as categories_router
+from app.features.statements.router import router as statements_router
+from app.features.transactions.router import router as transactions_router
+from app.features.analytics.router import router as analytics_router
+from app.features.insights.router import router as insights_router
 
 # Create the FastAPI application instance
 # Similar to: var app = WebApplication.CreateBuilder(args).Build();
@@ -42,20 +50,20 @@ app.add_middleware(
 # Compare to .NET: app.MapControllerRoute(...)
 
 # Authentication & Users
-app.include_router(auth.router)
-app.include_router(users.router)
+app.include_router(auth_router)
+app.include_router(users_router)
 
 # Feature 3: AI-Powered Statement Upload
-app.include_router(credit_cards.router)  # Manage credit cards
-app.include_router(categories.router)  # Transaction categories
-app.include_router(statements.router)  # PDF upload & extraction (MAIN FEATURE)
-app.include_router(transactions.router)  # View & manage transactions
+app.include_router(cards_router)  # Manage credit cards
+app.include_router(categories_router)  # Transaction categories
+app.include_router(statements_router)  # PDF upload & extraction (MAIN FEATURE)
+app.include_router(transactions_router)  # View & manage transactions
 
 # Analytics - The Real Value!
-app.include_router(analytics.router)  # Spending analysis across cards and time
+app.include_router(analytics_router)  # Spending analysis across cards and time
 
 # AI Insights - The WOW Factor!
-app.include_router(insights.router)  # AI-generated and rule-based spending insights
+app.include_router(insights_router)  # AI-generated and rule-based spending insights
 
 # Payment Alerts - Financial Wellness Feature!
 # app.include_router(alerts.router)  # Payment behavior alerts and debt warnings - Disabled for now
