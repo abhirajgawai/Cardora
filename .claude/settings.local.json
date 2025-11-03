@@ -29,7 +29,8 @@
       "Bash(Select-Object -First 10)",
       "Bash(mkdir:*)",
       "Bash(git add:*)",
-      "Bash(git clean:*)"
+      "Bash(git clean:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []

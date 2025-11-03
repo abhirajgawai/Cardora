@@ -38,7 +38,8 @@ class WeekendSpendingService:
         self,
         user_id: str,
         transactions: List[Transaction],
-        date_range: Optional[Tuple[date, date]] = None
+        date_range: Optional[Tuple[date, date]] = None,
+        statement_periods: Optional[List[Tuple[int, int]]] = None
     ) -> Optional[Dict[str, Any]]:
         """
         Generate weekend spending insight from transactions
@@ -157,7 +158,8 @@ class WeekendSpendingService:
                 weekend_count=len(weekend_transactions),
                 weekday_count=len(weekday_transactions),
                 percentage_higher=int(percentage_higher),
-                date_range=date_range
+                date_range=date_range,
+                statement_periods=statement_periods
             ),
             "impact_score": self._calculate_impact_score(percentage_higher, potential_monthly_savings),
             "potential_savings": float(potential_monthly_savings),
@@ -171,29 +173,19 @@ class WeekendSpendingService:
         weekend_count: int,
         weekday_count: int,
         percentage_higher: int,
-        date_range: Optional[Tuple[date, date]] = None
+        date_range: Optional[Tuple[date, date]] = None,
+        statement_periods: Optional[List[Tuple[int, int]]] = None
     ) -> str:
         """Generate human-friendly description with specific date range"""
 
         weekend_avg = weekend_total / weekend_count
         weekday_avg = weekday_total / weekday_count
 
-        # Format date range if provided
+        # Format date range based on statement periods
         if date_range:
             start_date, end_date = date_range
-            # Format as "Month Year" (e.g., "July 2025")
-            start_str = start_date.strftime("%B %Y")
-            end_str = end_date.strftime("%B %Y")
-
-            # If same month and year, show as single month
-            if start_str == end_str:
-                time_period = f"In {start_str}"
-            # If same year, show "June to August 2025"
-            elif start_date.year == end_date.year:
-                time_period = f"From {start_date.strftime('%B')} to {end_date.strftime('%B %Y')}"
-            # Different years, show full dates
-            else:
-                time_period = f"From {start_str} to {end_str}"
+            months_str = self._format_date_range(start_date, end_date, statement_periods)
+            time_period = f"From {months_str}"
         else:
             time_period = "Over the past few months"
 
@@ -270,3 +262,72 @@ class WeekendSpendingService:
         self.db.refresh(insight)
 
         return insight
+
+    def _format_date_range(
+        self,
+        start_date: date,
+        end_date: date,
+        statement_periods: Optional[List[Tuple[int, int]]] = None
+    ) -> str:
+        """
+        Format date range intelligently based on uploaded statement periods
+
+        Examples:
+        - Consecutive months: "June to September 2025"
+        - 2 non-consecutive months: "July and September 2025"
+        - 3+ non-consecutive months: "July, August, and October 2025"
+        """
+        from calendar import month_name
+
+        if not statement_periods:
+            # Fallback to old behavior if no statement periods provided
+            if start_date.year == end_date.year:
+                if start_date.month == end_date.month:
+                    return start_date.strftime("%B %Y")
+                return f"{start_date.strftime('%B')} to {end_date.strftime('%B %Y')}"
+            return f"{start_date.strftime('%B %Y')} to {end_date.strftime('%B %Y')}"
+
+        # Sort statement periods by year, then month
+        sorted_periods = sorted(statement_periods, key=lambda x: (x[1], x[0]))
+
+        if len(sorted_periods) == 1:
+            month, year = sorted_periods[0]
+            return f"{month_name[month]} {year}"
+
+        # Check if all periods are in the same year
+        years = set(year for _, year in sorted_periods)
+        same_year = len(years) == 1
+        year = sorted_periods[0][1] if same_year else None
+
+        # Check if months are consecutive
+        months_only = [month for month, _ in sorted_periods]
+        is_consecutive = all(
+            months_only[i] + 1 == months_only[i + 1]
+            for i in range(len(months_only) - 1)
+        ) if same_year else False
+
+        if is_consecutive and same_year:
+            # Use "to" for consecutive months
+            first_month = month_name[sorted_periods[0][0]]
+            last_month = month_name[sorted_periods[-1][0]]
+            return f"{first_month} to {last_month} {year}"
+
+        # Non-consecutive months
+        if len(sorted_periods) == 2:
+            # Use "and" for exactly 2 months
+            month1, year1 = sorted_periods[0]
+            month2, year2 = sorted_periods[1]
+            if same_year:
+                return f"{month_name[month1]} and {month_name[month2]} {year}"
+            return f"{month_name[month1]} {year1} and {month_name[month2]} {year2}"
+
+        # 3+ non-consecutive months: use comma-separated list
+        if same_year:
+            month_names = [month_name[month] for month, _ in sorted_periods[:-1]]
+            last_month = month_name[sorted_periods[-1][0]]
+            return f"{', '.join(month_names)}, and {last_month} {year}"
+        else:
+            # Different years - show year for each
+            parts = [f"{month_name[month]} {year}" for month, year in sorted_periods[:-1]]
+            last = f"{month_name[sorted_periods[-1][0]]} {sorted_periods[-1][1]}"
+            return f"{', '.join(parts)}, and {last}"

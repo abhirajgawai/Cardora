@@ -34,6 +34,7 @@ from app.models.category import Category
 
 # Default system categories (user_id = NULL for system-wide)
 DEFAULT_CATEGORIES = [
+    # ===== EXISTING CATEGORIES (8) =====
     {
         "name": "Groceries",
         "icon": "🛒",
@@ -81,6 +82,99 @@ DEFAULT_CATEGORIES = [
         "icon": "📦",
         "color": "#9E9E9E",  # Grey
         "is_custom": False
+    },
+
+    # ===== NEW CATEGORIES (13) =====
+    # Daily Essentials
+    {
+        "name": "Gas & Fuel",
+        "icon": "⛽",
+        "color": "#FF5722",  # Deep Orange
+        "is_custom": False
+    },
+
+    # Bills & Services
+    {
+        "name": "Insurance",
+        "icon": "🛡️",
+        "color": "#3F51B5",  # Indigo
+        "is_custom": False
+    },
+    {
+        "name": "Subscriptions & Services",
+        "icon": "📱",
+        "color": "#00BCD4",  # Cyan
+        "is_custom": False
+    },
+
+    # Shopping
+    {
+        "name": "Online Shopping",
+        "icon": "📦",
+        "color": "#FF6F00",  # Amber Dark
+        "is_custom": False
+    },
+    {
+        "name": "Clothing & Accessories",
+        "icon": "👕",
+        "color": "#E91E63",  # Pink (similar to Shopping)
+        "is_custom": False
+    },
+    {
+        "name": "Electronics",
+        "icon": "💻",
+        "color": "#607D8B",  # Blue Grey
+        "is_custom": False
+    },
+
+    # Health & Wellness
+    {
+        "name": "Fitness & Gym",
+        "icon": "💪",
+        "color": "#FF9800",  # Orange
+        "is_custom": False
+    },
+    {
+        "name": "Beauty & Personal Care",
+        "icon": "💇",
+        "color": "#E91E63",  # Pink
+        "is_custom": False
+    },
+
+    # Lifestyle
+    {
+        "name": "Pets",
+        "icon": "🐾",
+        "color": "#8BC34A",  # Light Green
+        "is_custom": False
+    },
+
+    # Travel
+    {
+        "name": "Flights & Travel Bookings",
+        "icon": "✈️",
+        "color": "#2196F3",  # Blue
+        "is_custom": False
+    },
+    {
+        "name": "Hotels & Accommodation",
+        "icon": "🏨",
+        "color": "#00BCD4",  # Cyan
+        "is_custom": False
+    },
+
+    # Other
+    {
+        "name": "Home & Garden",
+        "icon": "🏡",
+        "color": "#8BC34A",  # Light Green
+        "is_custom": False
+    },
+    {
+        "name": "Education & Learning",
+        "icon": "📚",
+        "color": "#3F51B5",  # Indigo
+        "is_custom": False
     }
 ]
 
@@ -103,12 +197,12 @@ def seed_categories(db: Session):
     ).count()
 
     if existing_count > 0:
-        print(f"\nCategories already seeded! Found {existing_count} system categories.")
-        print("Skipping seed (safe to run multiple times).")
-        print("=" * 70)
-        return True
+        print(f"\nFound {existing_count} existing system categories.")
+        print(f"Checking for new categories to add...")
+    else:
+        print(f"\nNo existing categories found.")
 
-    print(f"\nInserting {len(DEFAULT_CATEGORIES)} default categories...")
+    print(f"\nProcessing {len(DEFAULT_CATEGORIES)} categories...")
 
     # Insert each category
     inserted_count = 0

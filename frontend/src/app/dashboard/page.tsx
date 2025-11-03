@@ -7,8 +7,8 @@ import { getCurrentUser } from '@/lib/api/auth';
 import { getCards } from '@/lib/api/cards';
 import { getTransactions } from '@/lib/api/transactions';
 import { getInsights, generateInsights, dismissInsight, Insight } from '@/lib/api/insights';
-import { getStatementStatus } from '@/lib/api/statements';
-import { User, CreditCard, Transaction } from '@/models';
+import { getStatements } from '@/lib/api/statements';
+import { User, CreditCard, Transaction, Statement } from '@/models';
 import { DashboardStats, LineChartData, PieChartData } from '@/types';
 import { extractErrorMessage, isAuthError } from '@/lib/utils/errorHandler';
 import Sidebar from '@/components/layout/Sidebar';
@@ -17,9 +17,6 @@ import HeroInsightCard from '@/components/insights/HeroInsightCard';
 import {
   LineChart,
   Line,
-  PieChart,
-  Pie,
-  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -46,6 +43,7 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [cards, setCards] = useState<CreditCard[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [statements, setStatements] = useState<Statement[]>([]);
 
   // Insights state
   const [insights, setInsights] = useState<Insight[]>([]);
@@ -69,9 +67,10 @@ export default function DashboardPage() {
         const userData = await getCurrentUser();
         setUser(userData);
 
-        // Fetch cards and transactions separately to handle errors better
+        // Fetch cards, transactions, and statements separately to handle errors better
         let cardsData: CreditCard[] = [];
         let transactionsData: Transaction[] = [];
+        let statementsData: Statement[] = [];
 
         try {
           cardsData = await getCards();
@@ -100,6 +99,20 @@ export default function DashboardPage() {
           transactionsData = [];
         }
         setTransactions(transactionsData);
+
+        try {
+          statementsData = await getStatements();
+          console.log('Statements data:', statementsData);
+          // Ensure it's an array
+          if (!Array.isArray(statementsData)) {
+            console.warn('Statements data is not an array:', statementsData);
+            statementsData = [];
+          }
+        } catch (statementError) {
+          console.warn('Failed to fetch statements:', extractErrorMessage(statementError));
+          statementsData = [];
+        }
+        setStatements(statementsData);
       } catch (error) {
         const errorMessage = extractErrorMessage(error);
         console.error('Dashboard error:', errorMessage);
@@ -157,8 +170,39 @@ export default function DashboardPage() {
       }
     } catch (error: any) {
       console.error('Failed to generate insights:', error);
+
+      // Extract detailed error information
+      let errorMessage = 'Failed to generate insights. Please try again.';
+      let errorDetails = '';
+
+      if (error.response?.data) {
+        const detail = error.response.data.detail;
+
+        // Check if detail is an object with error information
+        if (typeof detail === 'object' && detail !== null) {
+          errorMessage = detail.message || detail.error || errorMessage;
+          if (detail.error_type) {
+            errorDetails = `Error Type: ${detail.error_type}`;
+          }
+          if (detail.hint) {
+            errorDetails += errorDetails ? `\n${detail.hint}` : detail.hint;
+          }
+        } else if (typeof detail === 'string') {
+          errorMessage = detail;
+        }
+      }
+
+      // Log full error to console for debugging
+      console.error('Full error details:', {
+        message: errorMessage,
+        details: errorDetails,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
+
       toast.error('Generation Failed', {
-        description: error.response?.data?.detail || 'Failed to generate insights. Make sure you have uploaded statements with transactions.',
+        description: errorDetails ? `${errorMessage}\n\n${errorDetails}` : errorMessage,
+        duration: 10000, // Show error longer (10 seconds)
       });
     } finally {
       setInsightsGenerating(false);
@@ -230,27 +274,133 @@ export default function DashboardPage() {
       }));
   }, [transactions]);
 
-  // Process category data
+  // Category icon mapping
+  const getCategoryIcon = (categoryName: string): string => {
+    const iconMap: Record<string, string> = {
+      'Groceries': '🛒',
+      'Flights & Travel': '✈️',
+      'Flights & Travel Bookings': '✈️',
+      'Transport': '🚗',
+      'Dining': '🍽️',
+      'Shopping': '🛍️',
+      'Bills & Utilities': '📄',
+      'Entertainment': '🎮',
+      'Healthcare': '⚕️',
+      'Clothing & Apparel': '👕',
+      'Clothing & Accessories': '👕',
+      'Fitness & Wellness': '💪',
+      'Online Shopping': '🖥️',
+      'Home & Garden': '🏡',
+      'Education': '📚',
+      'Pets': '🐾',
+      'Travel': '🧳',
+      'Gas': '⛽',
+      'Restaurants': '🍔',
+      'Coffee': '☕',
+      'Subscriptions': '📱',
+      'Insurance': '🛡️',
+      'Hotels & Accommodation': '🏨',
+      'Beauty & Personal Care': '💄',
+      'Electronics': '💻',
+      'Others': '📦',
+      'Uncategorized': '❓',
+    };
+    return iconMap[categoryName] || '📦';
+  };
+
+  // Process category data with counts, icons, and colors
   const categoryData = useMemo(() => {
-    const categoryMap = new Map<string, number>();
+    const categoryMap = new Map<string, { value: number; count: number }>();
     transactions.forEach((t) => {
-      if (t.category?.name) {
-        categoryMap.set(
-          t.category.name,
-          (categoryMap.get(t.category.name) || 0) + Number(t.amount)
-        );
-      }
+      const categoryName = t.category?.name || 'Uncategorized';
+      const existing = categoryMap.get(categoryName) || { value: 0, count: 0 };
+      existing.value += Number(t.amount);
+      existing.count += 1;
+      categoryMap.set(categoryName, existing);
     });
 
+    const total = Array.from(categoryMap.values()).reduce((sum, val) => sum + val.value, 0);
+
     return Array.from(categoryMap.entries())
-      .sort((a, b) => b[1] - a[1])
+      .sort((a, b) => b[1].value - a[1].value)
       .slice(0, 5) // Top 5 categories
-      .map(([name, value]) => ({
+      .map(([name, data], index) => ({
         name,
-        value: Math.round(value * 100) / 100,
+        value: Math.round(data.value * 100) / 100,
+        count: data.count,
+        percentage: total > 0 ? Math.round((data.value / total) * 100) : 0,
+        icon: getCategoryIcon(name),
+        color: COLORS[index % COLORS.length],
       }));
   }, [transactions]);
 
+
+  // Recent transactions (last 7)
+  const recentTransactions = useMemo(() => {
+    return [...transactions]
+      .sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime())
+      .slice(0, 7);
+  }, [transactions]);
+
+  // Month over month comparison
+  const monthComparison = useMemo(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+    const lastMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+    const lastMonthYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+
+    const currentMonthTotal = transactions
+      .filter(t => t.statement_month === currentMonth && t.statement_year === currentYear)
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+
+    const lastMonthTotal = transactions
+      .filter(t => t.statement_month === lastMonth && t.statement_year === lastMonthYear)
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+
+    const currentMonthCount = transactions
+      .filter(t => t.statement_month === currentMonth && t.statement_year === currentYear)
+      .length;
+
+    const lastMonthCount = transactions
+      .filter(t => t.statement_month === lastMonth && t.statement_year === lastMonthYear)
+      .length;
+
+    const change = lastMonthTotal > 0
+      ? ((currentMonthTotal - lastMonthTotal) / lastMonthTotal) * 100
+      : 0;
+
+    return {
+      currentMonth: { total: currentMonthTotal, count: currentMonthCount },
+      lastMonth: { total: lastMonthTotal, count: lastMonthCount },
+      change: Math.round(change),
+      hasData: currentMonthCount > 0 || lastMonthCount > 0
+    };
+  }, [transactions]);
+
+  // Most frequent merchant
+  const topMerchant = useMemo(() => {
+    const merchantMap = new Map<string, { total: number; count: number }>();
+    transactions.forEach(t => {
+      const merchant = t.merchant_name || t.description || 'Unknown';
+      const existing = merchantMap.get(merchant) || { total: 0, count: 0 };
+      existing.total += Number(t.amount);
+      existing.count += 1;
+      merchantMap.set(merchant, existing);
+    });
+
+    const sorted = Array.from(merchantMap.entries())
+      .sort((a, b) => b[1].count - a[1].count);
+
+    if (sorted.length === 0) return null;
+
+    const [name, data] = sorted[0];
+    return {
+      name,
+      total: Math.round(data.total * 100) / 100,
+      count: data.count
+    };
+  }, [transactions]);
 
   // Statement periods - Show ALL uploaded periods
   const statementPeriods = useMemo(() => {
@@ -404,9 +554,13 @@ export default function DashboardPage() {
               {/* Generate Insights Button */}
               <button
                 onClick={handleGenerateInsights}
-                disabled={insightsGenerating || transactions.length === 0}
+                disabled={insightsGenerating || statements.length < 2}
                 className="flex items-center space-x-2 px-6 py-2.5 gradient-indigo-purple text-white font-semibold rounded-xl btn-hover-accent shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                title={transactions.length === 0 ? 'Upload statements to generate insights' : 'Generate AI Insights'}
+                title={
+                  statements.length < 2
+                    ? `Upload at least 2 statements to generate insights (currently have ${statements.length})`
+                    : 'Generate AI Insights'
+                }
               >
                 {insightsGenerating ? (
                   <>
@@ -438,25 +592,43 @@ export default function DashboardPage() {
                 </svg>
                 <span>Upload Statement</span>
               </button>
-
-              {/* User Profile */}
-              <div className="flex items-center space-x-3 border-l border-border pl-4">
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-foreground">
-                    {user?.full_name}
-                  </p>
-                  <p className="text-xs text-muted-foreground">{user?.email}</p>
-                </div>
-                <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-semibold">
-                  {user?.full_name?.charAt(0).toUpperCase()}
-                </div>
-              </div>
             </div>
           </div>
         </header>
 
         {/* Dashboard Content */}
         <main className="px-8 py-5">
+          {/* Insights Requirement Notice */}
+          {statements.length < 2 && (
+            <div className="mb-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 animate-fade-in">
+              <div className="flex items-start space-x-3">
+                <div className="flex-shrink-0">
+                  <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-1">
+                    AI Insights Requires More Data
+                  </h3>
+                  <p className="text-sm text-blue-700 dark:text-blue-300 mb-2">
+                    You currently have {statements.length} statement{statements.length === 1 ? '' : 's'} uploaded.
+                    Upload at least 2 months of statements to unlock AI-powered spending insights.
+                  </p>
+                  <button
+                    onClick={() => router.push('/upload')}
+                    className="text-sm text-blue-600 dark:text-blue-400 font-medium hover:underline inline-flex items-center space-x-1"
+                  >
+                    <span>Upload more statements</span>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* KPI Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
             {/* Total Spending Card */}
@@ -577,133 +749,216 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* No Insights Message */}
-          {insights.length === 0 && !insightsLoading && transactions.length > 0 && (
-            <div className="mb-6 animate-slide-in" style={{ animationDelay: '0.6s' }}>
-              <div className="fintech-card p-6 text-center">
-                <svg className="w-16 h-16 mx-auto mb-4 text-muted-foreground/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                </svg>
-                <h3 className="text-lg font-bold text-foreground mb-2">No Insights Yet</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Click "Generate Insights" to analyze your spending patterns and get personalized recommendations.
-                </p>
-                <button
-                  onClick={handleGenerateInsights}
-                  disabled={insightsGenerating}
-                  className="px-6 py-2.5 gradient-indigo-purple text-white font-semibold rounded-xl btn-hover-accent shadow-lg disabled:opacity-50"
-                >
-                  {insightsGenerating ? 'Generating...' : 'Generate Insights'}
-                </button>
-              </div>
-            </div>
-          )}
 
-          {/* Charts Section */}
+          {/* Main Content Grid - Recent Transactions + Top Categories */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
-            {/* Spending Trend Chart */}
-            <div className="fintech-card p-5 animate-slide-in" style={{ animationDelay: "0.8s" }}>
-              <div className="mb-6">
-                <h3 className="card-title text-lg mb-1">
-                  Spending Trend
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Your spending over the last 6 months
-                </p>
-              </div>
-              {spendingTrendData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={280}>
-                  <LineChart data={spendingTrendData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                    <XAxis
-                      dataKey="month"
-                      tick={{ fill: '#64748B', fontSize: 12 }}
-                      stroke="#E2E8F0"
-                    />
-                    <YAxis
-                      tick={{ fill: '#64748B', fontSize: 12 }}
-                      stroke="#E2E8F0"
-                      tickFormatter={(value: number) => `$${value.toLocaleString()}`}
-                    />
-                    <Tooltip
-                      formatter={(value: number) => [`$${value.toFixed(2)}`, 'Spending']}
-                      contentStyle={{
-                        backgroundColor: '#FFFFFF',
-                        border: '1px solid #E2E8F0',
-                        borderRadius: '12px',
-                        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-                      }}
-                    />
-                    <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                    <Line
-                      type="monotone"
-                      dataKey="spending"
-                      stroke="#4B6EF5"
-                      strokeWidth={3}
-                      dot={{ fill: '#4B6EF5', r: 5 }}
-                      activeDot={{ r: 7, fill: '#00E0A1' }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-[280px] flex items-center justify-center text-muted-foreground">
-                  No spending data available
+            {/* Recent Transactions */}
+            <div className="fintech-card animate-slide-in" style={{ animationDelay: "0.7s" }}>
+              <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-bold text-foreground">Recent Transactions</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">Your latest spending activity</p>
                 </div>
-              )}
+                {transactions.length > 7 && (
+                  <button
+                    onClick={() => router.push('/transactions')}
+                    className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+                  >
+                    View All
+                  </button>
+                )}
+              </div>
+              <div className="p-5">
+                {recentTransactions.length > 0 ? (
+                  <div className="space-y-3">
+                    {recentTransactions.map((transaction, index) => (
+                      <button
+                        key={transaction.id}
+                        onClick={() => router.push('/transactions')}
+                        className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-muted/30 transition-all duration-200 border border-transparent hover:border-border group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
+                            style={{ backgroundColor: `${COLORS[index % COLORS.length]}15` }}
+                          >
+                            {getCategoryIcon(transaction.category?.name || 'Uncategorized')}
+                          </div>
+                          <div className="text-left">
+                            <div className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors truncate max-w-[180px]">
+                              {transaction.merchant_name || transaction.description}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {new Date(transaction.transaction_date).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric'
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-bold text-sm text-foreground">
+                            ${Number(transaction.amount).toFixed(2)}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {transaction.category?.name || 'Other'}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-10 text-center text-muted-foreground text-sm">
+                    <svg className="w-12 h-12 mx-auto mb-3 text-muted-foreground/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                    <p className="font-medium mb-1">No transactions yet</p>
+                    <p className="text-xs">Upload a statement to get started</p>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Category Breakdown Chart */}
-            <div className="fintech-card p-5 animate-slide-in" style={{ animationDelay: "0.9s" }}>
-              <div className="mb-6">
-                <h3 className="card-title text-lg mb-1">
-                  Category Breakdown
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Top 5 spending categories
-                </p>
+            {/* Top Categories - Horizontal Bars */}
+            <div className="fintech-card p-5 animate-slide-in" style={{ animationDelay: "0.8s" }}>
+              <div className="mb-5 flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-bold text-foreground mb-0.5">Top Categories</h3>
+                  <p className="text-xs text-muted-foreground">Where your money goes</p>
+                </div>
+                {categoryData.length > 0 && (
+                  <button
+                    onClick={() => router.push('/analytics')}
+                    className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+                  >
+                    View All
+                  </button>
+                )}
               </div>
               {categoryData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={280}>
-                  <PieChart>
-                    <Pie
-                      data={categoryData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={(props: any) =>
-                        `${props.name} (${(props.percent * 100).toFixed(0)}%)`
-                      }
-                      outerRadius={90}
-                      fill="#8884d8"
-                      dataKey="value"
+                <div className="space-y-3">
+                  {categoryData.map((category) => (
+                    <button
+                      key={category.name}
+                      onClick={() => router.push('/analytics')}
+                      className="w-full group hover:bg-muted/30 p-3 rounded-lg transition-all duration-200 border border-transparent hover:border-border"
                     >
-                      {categoryData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      formatter={(value: number) => [`$${value.toFixed(2)}`, 'Amount']}
-                      contentStyle={{
-                        backgroundColor: '#FFFFFF',
-                        border: '1px solid #E2E8F0',
-                        borderRadius: '12px',
-                        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-                      }}
-                    />
-                    <Legend
-                      verticalAlign="bottom"
-                      height={36}
-                      wrapperStyle={{ paddingTop: '20px' }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
+                            style={{ backgroundColor: `${category.color}15` }}
+                          >
+                            {category.icon}
+                          </div>
+                          <div className="text-left">
+                            <div className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">
+                              {category.name}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {category.count} transaction{category.count !== 1 ? 's' : ''}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-bold text-sm text-foreground">
+                            ${category.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {category.percentage}%
+                          </div>
+                        </div>
+                      </div>
+                      <div className="w-full h-2 bg-muted/50 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-500 ease-out"
+                          style={{
+                            width: `${category.percentage}%`,
+                            backgroundColor: category.color,
+                          }}
+                        />
+                      </div>
+                    </button>
+                  ))}
+                </div>
               ) : (
-                <div className="h-[280px] flex items-center justify-center text-muted-foreground">
-                  No category data available
+                <div className="py-10 flex items-center justify-center text-muted-foreground text-sm">
+                  <svg className="w-12 h-12 mx-auto mb-3 text-muted-foreground/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  <p className="font-medium">No category data</p>
                 </div>
               )}
             </div>
           </div>
+
+          {/* Month Comparison Cards */}
+          {monthComparison.hasData && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
+              {/* This Month */}
+              <div className="fintech-card card-accent-indigo p-5 animate-slide-in" style={{ animationDelay: "0.9s" }}>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  {monthComparison.change !== 0 && (
+                    <div className={`px-2 py-1 rounded-full text-xs font-bold ${
+                      monthComparison.change > 0
+                        ? 'bg-red-500/10 text-red-500'
+                        : 'bg-emerald-500/10 text-emerald-500'
+                    }`}>
+                      {monthComparison.change > 0 ? '+' : ''}{monthComparison.change}%
+                    </div>
+                  )}
+                </div>
+                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">This Month</h3>
+                <p className="text-2xl font-bold text-foreground mb-1">
+                  ${monthComparison.currentMonth.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {monthComparison.currentMonth.count} transaction{monthComparison.currentMonth.count !== 1 ? 's' : ''}
+                </p>
+              </div>
+
+              {/* Last Month */}
+              <div className="fintech-card card-accent-teal p-5 animate-slide-in" style={{ animationDelay: "1.0s" }}>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="w-11 h-11 rounded-xl bg-accent/10 flex items-center justify-center">
+                    <svg className="w-6 h-6 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                </div>
+                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Last Month</h3>
+                <p className="text-2xl font-bold text-foreground mb-1">
+                  ${monthComparison.lastMonth.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {monthComparison.lastMonth.count} transaction{monthComparison.lastMonth.count !== 1 ? 's' : ''}
+                </p>
+              </div>
+
+              {/* Top Merchant */}
+              <div className="fintech-card card-accent-amber p-5 animate-slide-in" style={{ animationDelay: "1.1s" }}>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="w-11 h-11 rounded-xl gradient-indigo-purple flex items-center justify-center">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                  </div>
+                </div>
+                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Most Frequent</h3>
+                <p className="text-lg font-bold text-foreground mb-1 truncate" title={topMerchant?.name}>
+                  {topMerchant?.name || 'N/A'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {topMerchant ? `${topMerchant.count} visit${topMerchant.count !== 1 ? 's' : ''} • $${topMerchant.total.toFixed(2)}` : 'No data'}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Statement Periods and Budget Progress Section */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
@@ -872,66 +1127,6 @@ export default function DashboardPage() {
                     <p className="text-xs">We'll help you identify any missing months</p>
                   </div>
                 )}
-              </div>
-            </div>
-          </div>
-
-          {/* Budget Progress Section - Moved Down */}
-          <div className="grid grid-cols-1 mb-6">
-            {/* Budget Progress - Coming Soon */}
-            <div className="fintech-card animate-slide-in relative overflow-hidden" style={{ animationDelay: "1.4s" }}>
-              <div className="px-5 py-4 border-b border-border">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-base font-bold text-foreground">Budget Tracking</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">Monitor your spending limits</p>
-                  </div>
-                  <span className="px-3 py-1 rounded-full bg-gradient-to-r from-primary to-accent text-white text-xs font-bold">
-                    Coming Soon
-                  </span>
-                </div>
-              </div>
-              <div className="p-5 relative">
-                <div className="opacity-50 space-y-4">
-                  {/* Mock budget items */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-foreground">Dining</span>
-                      <span className="text-sm text-muted-foreground">$450 / $600</span>
-                    </div>
-                    <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-primary to-accent rounded-full" style={{ width: '75%' }}></div>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-foreground">Shopping</span>
-                      <span className="text-sm text-muted-foreground">$320 / $400</span>
-                    </div>
-                    <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-accent to-primary rounded-full" style={{ width: '80%' }}></div>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-foreground">Transport</span>
-                      <span className="text-sm text-muted-foreground">$150 / $300</span>
-                    </div>
-                    <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full" style={{ width: '50%' }}></div>
-                    </div>
-                  </div>
-                </div>
-                {/* Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-card via-card/90 to-transparent flex items-center justify-center">
-                  <div className="text-center">
-                    <svg className="w-16 h-16 mx-auto mb-3 text-primary opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <p className="text-sm font-semibold text-foreground mb-1">Budget Tracking</p>
-                    <p className="text-xs text-muted-foreground">Coming in the next update</p>
-                  </div>
-                </div>
               </div>
             </div>
           </div>

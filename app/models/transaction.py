@@ -314,6 +314,26 @@ class Transaction(Base):
     # Future: Flag low-confidence transactions for review
     # Compare to .NET: [Precision(3, 2)] public decimal? ConfidenceScore
 
+    category_auto = Column(
+        String(50),
+        nullable=True
+    )
+    # AI-generated merchant category from PDF extraction
+    # Example: "coffee_shop", "groceries", "ride_sharing", "public_transport"
+    # Values match MerchantCategory enum: groceries, public_transport, ride_sharing,
+    # coffee_shop, dining_out, fast_food, food_delivery, entertainment, shopping,
+    # subscription, lifestyle, utilities, healthcare, education, fuel, unknown
+    #
+    # WHY THIS FIELD?
+    # Categorizing merchants during PDF extraction (in the same AI call) is:
+    # ✓ Faster - Pre-categorized, no additional API calls during insights
+    # ✓ Cheaper - Bulk categorization in single extraction prompt
+    # ✓ Better Context - Gemini sees full statement context
+    # ✓ Simpler - No separate categorization service needed
+    #
+    # This enables instant insight generation without per-merchant AI calls.
+    # Compare to .NET: [MaxLength(50)] public string CategoryAuto { get; set; }
+
     # ═══════════════════════════════════════════════════════════════
     # TIMESTAMPS
     # ═══════════════════════════════════════════════════════════════

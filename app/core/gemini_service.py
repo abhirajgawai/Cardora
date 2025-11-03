@@ -166,11 +166,37 @@ Your task:
    - Transaction date (format: YYYY-MM-DD)
    - Brief description (if available)
    - Categorize the transaction (use the categories below)
+   - Categorize merchant type (for spending insights - see MERCHANT CATEGORIES below)
    - Determine if it's likely a recurring payment (subscription, utility bill, etc.)
    - Provide a confidence score (0.0 to 1.0) for your extraction accuracy
 
 Available categories (choose the MOST appropriate one):
 {category_descriptions}
+
+MERCHANT CATEGORIES (for merchant type classification - choose ONE):
+- "groceries" - Supermarkets, grocery stores (NTUC, Fairprice, Cold Storage, Sheng Siong, Giant, GrabMart)
+- "public_transport" - MRT, buses, trains (SMRT, BUS, TransitLink, EZ-Link)
+- "ride_sharing" - Taxis, ride-hailing for RIDES ONLY (GrabCar, GrabBike, Grab rides, Gojek, Uber, Comfort, taxi)
+- "coffee_shop" - Coffee chains, cafes (Starbucks, Coffee Bean, Costa)
+- "dining_out" - Restaurants, full-service dining
+- "fast_food" - Quick service restaurants (McDonald's, KFC, Burger King)
+- "food_delivery" - Food delivery services ONLY (GrabFood, Foodpanda, Deliveroo - look for "FOOD" in description)
+- "entertainment" - Movies, games, streaming (Cinema, Netflix, Spotify)
+- "shopping" - Retail, clothing, electronics (Uniqlo, Lazada, Shopee)
+- "utilities" - Bills, phone, internet (Singtel, StarHub, SP Services)
+- "healthcare" - Medical, pharmacy, dental (Clinic, hospital, pharmacy)
+- "lifestyle" - Gym, beauty, spa
+- "fuel" - Petrol, gas stations (Shell, Esso, Caltex)
+- "subscription" - Recurring digital services (Netflix, Spotify, gym memberships)
+- "unknown" - Cannot determine category
+
+**IMPORTANT - GRAB SUPER-APP DIFFERENTIATION:**
+Grab offers multiple services. You MUST differentiate by looking at the transaction description:
+- "GRAB*FOOD", "GRABFOOD" → category: "food_delivery", category_name: "Dining"
+- "GRAB*CAR", "GRAB*BIKE", "GRAB*RIDE", "GRAB SINGAPORE" (no specific service mentioned) → category: "ride_sharing", category_name: "Transport"
+- "GRAB*MART", "GRABMART" → category: "groceries", category_name: "Groceries"
+- "GRAB*EXPRESS", "GRAB*DELIVERY" → category: "shopping", category_name: "Shopping"
+- "GRABPAY TOP UP", "GRAB*PAY" → category: "unknown", category_name: "Others"
 
 IMPORTANT RULES:
 - Extract ONLY posted transactions (NOT pending)
@@ -179,6 +205,8 @@ IMPORTANT RULES:
 - If merchant name is unclear, make your best guess
 - Confidence score should reflect how certain you are about the data
 - For recurring payments: Look for monthly subscriptions, utilities, insurance, loan payments, etc.
+- category_name: Use from user's category list above
+- category: Use from MERCHANT CATEGORIES list (for spending insights)
 
 Return ONLY a JSON array of transactions in this EXACT format:
 [
@@ -188,6 +216,7 @@ Return ONLY a JSON array of transactions in this EXACT format:
     "transaction_date": "2024-10-15",
     "description": "Coffee purchase",
     "category_name": "Dining",
+    "category": "coffee_shop",
     "is_recurring": false,
     "confidence_score": 0.95
   }},

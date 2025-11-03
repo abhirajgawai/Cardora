@@ -16,11 +16,13 @@ export default function InsightsPage() {
   const router = useRouter();
   const [insights, setInsights] = useState<Insight[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedInsightId, setExpandedInsightId] = useState<string | null>(null);
+  const [selectedInsight, setSelectedInsight] = useState<Insight | null>(null);
   const [transactions, setTransactions] = useState<InsightTransaction[]>([]);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
   const [transactionsSummary, setTransactionsSummary] = useState<{ total_amount: number; transaction_count: number } | null>(null);
   const [generatingInsights, setGeneratingInsights] = useState(false);
+  const [visibleTransactionCount, setVisibleTransactionCount] = useState<{ [key: string]: number }>({});
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     fetchInsights();
@@ -64,41 +66,61 @@ export default function InsightsPage() {
     }
   };
 
-  const handleExpandInsight = async (insightId: string) => {
-    // If clicking the same insight, collapse it
-    if (expandedInsightId === insightId) {
-      setExpandedInsightId(null);
-      setTransactions([]);
-      setTransactionsSummary(null);
-      return;
-    }
-
-    // Expand and load transactions
-    setExpandedInsightId(insightId);
+  const handleOpenInsight = async (insight: Insight) => {
+    setSelectedInsight(insight);
+    setIsModalOpen(true);
     setTransactionsLoading(true);
 
-    try {
-      const response = await getInsightTransactions(insightId);
-      setTransactions(response.transactions);
-      setTransactionsSummary(response.summary);
-    } catch (error) {
-      console.error('Failed to fetch transactions:', error);
-      toast.error('Load Failed', {
-        description: 'Failed to load transactions. Please try again.',
-      });
-    } finally {
+    // Load transactions if insight type supports it
+    if (['subscription_detection', 'transport_savings', 'recurring_habit', 'weekend_spending'].includes(insight.insight_type)) {
+      try {
+        const response = await getInsightTransactions(insight.id);
+        setTransactions(response.transactions);
+        setTransactionsSummary(response.summary);
+        // Initialize with 5 visible transactions
+        setVisibleTransactionCount({ [insight.id]: 5 });
+      } catch (error) {
+        console.error('Failed to fetch transactions:', error);
+        toast.error('Load Failed', {
+          description: 'Failed to load transactions. Please try again.',
+        });
+      } finally {
+        setTransactionsLoading(false);
+      }
+    } else {
       setTransactionsLoading(false);
     }
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedInsight(null);
+    setTransactions([]);
+    setTransactionsSummary(null);
+    setVisibleTransactionCount({});
+  };
+
+  const loadMoreTransactions = (insightId: string) => {
+    setVisibleTransactionCount(prev => ({
+      ...prev,
+      [insightId]: (prev[insightId] || 5) + 10
+    }));
+  };
+
+  const showAllTransactions = (insightId: string) => {
+    setVisibleTransactionCount(prev => ({
+      ...prev,
+      [insightId]: transactions.length
+    }));
   };
 
   const handleDismiss = async (insightId: string) => {
     try {
       await dismissInsight(insightId);
       setInsights(prev => prev.filter(i => i.id !== insightId));
-      if (expandedInsightId === insightId) {
-        setExpandedInsightId(null);
-        setTransactions([]);
-        setTransactionsSummary(null);
+      // Close modal if this insight was open
+      if (selectedInsight?.id === insightId) {
+        handleCloseModal();
       }
       toast.success('Insight Dismissed', {
         description: 'This insight has been removed from your list.',
@@ -127,6 +149,87 @@ export default function InsightsPage() {
     if (score >= 8) return 'High Impact';
     if (score >= 5) return 'Medium Impact';
     return 'Low Impact';
+  };
+
+  // Get insight type icon and color
+  const getInsightTypeIcon = (insightType: string, insightTitle?: string) => {
+    // Special handling for positive recurring_habit insight
+    if (insightType === 'recurring_habit' && insightTitle?.toLowerCase().includes('no recurring')) {
+      return {
+        icon: '🏆',
+        color: '#10B981', // Emerald (positive green)
+        bgColor: '#10B98115'
+      };
+    }
+
+    const iconMap: Record<string, { icon: string; color: string; bgColor: string }> = {
+      'subscription': {
+        icon: '💳',
+        color: '#8B5CF6', // Purple
+        bgColor: '#8B5CF615'
+      },
+      'subscription_detection': {
+        icon: '💳',
+        color: '#8B5CF6', // Purple
+        bgColor: '#8B5CF615'
+      },
+      'weekend_spending': {
+        icon: '📅',
+        color: '#F59E0B', // Amber
+        bgColor: '#F59E0B15'
+      },
+      'recurring_habit': {
+        icon: '🔄',
+        color: '#10B981', // Emerald
+        bgColor: '#10B98115'
+      },
+      'transport_savings': {
+        icon: '🚗',
+        color: '#00E0A1', // Teal
+        bgColor: '#00E0A115'
+      },
+      'smart_spending_praise': {
+        icon: '⭐',
+        color: '#4B6EF5', // Indigo
+        bgColor: '#4B6EF515'
+      },
+      'ai_personalized': {
+        icon: '💡',
+        color: '#4B6EF5', // Indigo
+        bgColor: '#4B6EF515'
+      }
+    };
+
+    return iconMap[insightType] || { icon: '💡', color: '#4B6EF5', bgColor: '#4B6EF515' };
+  };
+
+  // Get category icon
+  const getCategoryIcon = (categoryName: string): string => {
+    const iconMap: Record<string, string> = {
+      'Groceries': '🛒',
+      'Flights & Travel': '✈️',
+      'Transport': '🚗',
+      'Dining': '🍽️',
+      'Shopping': '🛍️',
+      'Bills & Utilities': '📄',
+      'Entertainment': '🎮',
+      'Healthcare': '⚕️',
+      'Clothing & Apparel': '👕',
+      'Fitness & Wellness': '💪',
+      'Online Shopping': '🖥️',
+      'Home & Garden': '🏡',
+      'Education': '📚',
+      'Pets': '🐾',
+      'Travel': '🧳',
+      'Gas': '⛽',
+      'Restaurants': '🍔',
+      'Coffee': '☕',
+      'Subscriptions': '📱',
+      'Insurance': '🛡️',
+      'Others': '📦',
+      'Uncategorized': '❓',
+    };
+    return iconMap[categoryName] || '📦';
   };
 
   const formatDate = (dateString: string) => {
@@ -321,297 +424,304 @@ export default function InsightsPage() {
               </button>
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {insights.map((insight, index) => {
-                const isExpanded = expandedInsightId === insight.id;
-                const topExpenses = isExpanded ? getTopExpenses(transactions) : new Set();
-                const weekendGroups = isExpanded && insight.insight_type === 'weekend_spending'
-                  ? groupTransactionsByWeekend(transactions)
-                  : [];
-                const weekendStats = isExpanded && insight.insight_type === 'weekend_spending'
-                  ? calculateWeekendStats(insight, transactions)
-                  : null;
-                const recommendations = isExpanded && transactionsSummary
-                  ? generateRecommendations(insight, transactions)
-                  : [];
+                const insightIcon = getInsightTypeIcon(insight.insight_type, insight.title);
+                const hasTransactions = ['subscription_detection', 'transport_savings', 'recurring_habit', 'weekend_spending'].includes(insight.insight_type);
+                const hasSavings = insight.potential_savings && insight.potential_savings > 0 &&
+                                   ['subscription_detection', 'transport_savings', 'recurring_habit'].includes(insight.insight_type);
 
                 return (
-                  <div key={insight.id} className="fintech-card overflow-hidden animate-slide-in" style={{ animationDelay: `${index * 0.1}s` }}>
-                    {/* Insight Header */}
-                    <div className="p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-2">
-                            <h3 className="text-xl font-bold text-foreground">{insight.title}</h3>
-                            <span className={`px-2.5 py-1 text-xs font-bold rounded-full border ${getImpactBadgeColor(insight.impact_score)}`}>
-                              {getImpactLabel(insight.impact_score)}
-                            </span>
-                          </div>
-                          <p className="text-sm text-muted-foreground mb-3">
-                            {formatDate(insight.created_at)}
-                          </p>
-                          <p className="text-foreground leading-relaxed">{insight.description}</p>
-                        </div>
-
-                        {/* Action Buttons */}
-                        <div className="flex items-center space-x-2 ml-4">
-                          <button
-                            onClick={() => handleDismiss(insight.id)}
-                            className="p-2 rounded-lg bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors"
-                            title="Dismiss"
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Potential Savings */}
-                      {insight.potential_savings && insight.potential_savings > 0 && (
-                        <div className="mt-4 p-4 rounded-lg bg-green-500/5 border border-green-500/20">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">
-                                Potential Monthly Savings
-                              </p>
-                              <p className="text-2xl font-bold text-green-600 mt-1">
-                                {formatCurrency(insight.potential_savings)}
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">
-                                Impact Score
-                              </p>
-                              <p className="text-2xl font-bold text-foreground mt-1">
-                                {insight.impact_score}/10
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Expand/Collapse Button */}
-                      <button
-                        onClick={() => handleExpandInsight(insight.id)}
-                        disabled={transactionsLoading}
-                        className="mt-4 w-full px-4 py-3 bg-primary hover:bg-primary/90 text-white font-semibold rounded-lg transition-all flex items-center justify-center space-x-2 shadow-md hover:shadow-lg disabled:opacity-50"
+                  <div
+                    key={insight.id}
+                    onClick={() => handleOpenInsight(insight)}
+                    className="fintech-card p-6 text-left hover:shadow-xl hover:scale-[1.02] transition-all duration-200 animate-slide-in cursor-pointer"
+                    style={{ animationDelay: `${index * 0.1}s` }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleOpenInsight(insight);
+                      }
+                    }}
+                  >
+                    {/* Icon & Dismiss Button */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div
+                        className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl shadow-sm"
+                        style={{ backgroundColor: insightIcon.bgColor }}
                       >
-                        {transactionsLoading ? (
-                          <>
-                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            <span>Loading Transactions...</span>
-                          </>
-                        ) : (
-                          <>
-                            <span>{isExpanded ? 'Hide Transactions' : 'View Linked Transactions'}</span>
-                            <svg className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </>
-                        )}
+                        {insightIcon.icon}
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDismiss(insight.id);
+                        }}
+                        className="p-1.5 rounded-lg bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                        title="Dismiss"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
                       </button>
                     </div>
 
-                    {/* Expanded Transactions View */}
-                    {isExpanded && transactions.length > 0 && (
-                      <div className="border-t border-border bg-muted/30 animate-slide-down">
-                        <div className="p-6">
-                          {/* Summary Stats */}
-                          <div className="grid grid-cols-2 gap-4 mb-6">
-                            <div className="p-4 bg-background rounded-lg border border-border">
-                              <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold mb-1">
-                                Total Transactions
-                              </p>
-                              <p className="text-2xl font-bold text-foreground">
-                                {transactionsSummary?.transaction_count || 0}
-                              </p>
-                            </div>
-                            <div className="p-4 bg-background rounded-lg border border-border">
-                              <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold mb-1">
-                                Total Amount
-                              </p>
-                              <p className="text-2xl font-bold text-foreground">
-                                {formatCurrency(transactionsSummary?.total_amount || 0)}
-                              </p>
-                            </div>
+                    {/* Title */}
+                    <h3 className="text-lg font-bold text-foreground mb-3 line-clamp-2">
+                      {insight.title}
+                    </h3>
+
+                    {/* Impact Badge */}
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className={`px-2.5 py-1 text-xs font-bold rounded-full border ${getImpactBadgeColor(insight.impact_score)}`}>
+                        {getImpactLabel(insight.impact_score)}
+                      </span>
+                    </div>
+
+                    {/* Savings Display */}
+                    {hasSavings ? (
+                      <div className="p-4 rounded-lg bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide font-bold mb-1">
+                          Save Monthly
+                        </p>
+                        <p className="text-2xl font-bold text-green-600">
+                          {formatCurrency(insight.potential_savings)}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="text-sm text-muted-foreground line-clamp-2">
+                        {insight.description}
+                      </div>
+                    )}
+
+                    {/* View Details Indicator */}
+                    <div className="mt-4 pt-4 border-t border-border flex items-center justify-between text-sm">
+                      <span className="text-primary font-semibold">View Details</span>
+                      <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Modal for Insight Details */}
+          {isModalOpen && selectedInsight && (
+            <div
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in"
+              onClick={handleCloseModal}
+            >
+              <div
+                className="bg-card rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden animate-scale-in"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Modal Header */}
+                <div className="p-6 border-b border-border">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-4 flex-1">
+                      <div
+                        className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl shadow-sm flex-shrink-0"
+                        style={{ backgroundColor: getInsightTypeIcon(selectedInsight.insight_type, selectedInsight.title).bgColor }}
+                      >
+                        {getInsightTypeIcon(selectedInsight.insight_type, selectedInsight.title).icon}
+                      </div>
+                      <div className="flex-1">
+                        <h2 className="text-2xl font-bold text-foreground mb-2">
+                          {selectedInsight.title}
+                        </h2>
+                        <span className={`px-2.5 py-1 text-xs font-bold rounded-full border ${getImpactBadgeColor(selectedInsight.impact_score)}`}>
+                          {getImpactLabel(selectedInsight.impact_score)}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleCloseModal}
+                      className="p-2 rounded-lg bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+                      title="Close"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Modal Body */}
+                <div className="overflow-y-auto max-h-[calc(90vh-140px)]">
+                  <div className="p-6 space-y-6">
+                    {/* Description */}
+                    <div>
+                      <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wide mb-3">
+                        Details
+                      </h3>
+                      <p className="text-foreground leading-relaxed whitespace-pre-line">
+                        {selectedInsight.description}
+                      </p>
+                    </div>
+
+                    {/* Savings Display */}
+                    {selectedInsight.potential_savings && selectedInsight.potential_savings > 0 &&
+                     ['subscription_detection', 'transport_savings', 'recurring_habit'].includes(selectedInsight.insight_type) && (
+                      <div className="p-6 rounded-xl bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20">
+                        <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wide mb-2">
+                          Potential Monthly Savings
+                        </h3>
+                        <p className="text-4xl font-bold text-green-600">
+                          {formatCurrency(selectedInsight.potential_savings)}
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-2">
+                          That's {formatCurrency(selectedInsight.potential_savings * 12)} per year!
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Linked Transactions */}
+                    {['subscription_detection', 'transport_savings', 'recurring_habit', 'weekend_spending'].includes(selectedInsight.insight_type) && (
+                      <div>
+                        <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wide mb-4">
+                          Linked Transactions
+                        </h3>
+
+                        {transactionsLoading ? (
+                          <div className="text-center py-8">
+                            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                            <p className="text-muted-foreground">Loading transactions...</p>
                           </div>
-
-                          {/* Weekend vs Weekday Comparison Chart */}
-                          {weekendStats && (
-                            <div className="mb-6 p-5 bg-background rounded-lg border border-border">
-                              <h5 className="text-sm font-bold text-foreground mb-4">Weekend vs Weekday Comparison</h5>
-                              <div className="space-y-4">
-                                {/* Weekend Bar */}
+                        ) : transactions.length > 0 ? (
+                          <>
+                            {/* Transaction Summary */}
+                            {transactionsSummary && (
+                              <div className="mb-4 p-4 bg-muted/50 rounded-lg flex items-center justify-between">
                                 <div>
-                                  <div className="flex items-center justify-between mb-2">
-                                    <span className="text-sm font-medium text-foreground">
-                                      Weekend ({weekendStats.weekend.count} txns)
-                                    </span>
-                                    <span className="text-sm font-bold text-red-500">
-                                      {formatCurrency(weekendStats.weekend.total)}
-                                    </span>
-                                  </div>
-                                  <div className="w-full h-3 bg-muted rounded-full overflow-hidden">
-                                    <div
-                                      className="h-full bg-gradient-to-r from-red-500 to-orange-500 rounded-full transition-all duration-700"
-                                      style={{
-                                        width: `${(weekendStats.weekend.total / (weekendStats.weekend.total + weekendStats.weekday.total)) * 100}%`
-                                      }}
-                                    />
-                                  </div>
+                                  <p className="text-sm text-muted-foreground">Total Amount</p>
+                                  <p className="text-2xl font-bold text-foreground">
+                                    {formatCurrency(transactionsSummary.total_amount)}
+                                  </p>
                                 </div>
-
-                                {/* Weekday Bar */}
-                                <div>
-                                  <div className="flex items-center justify-between mb-2">
-                                    <span className="text-sm font-medium text-foreground">
-                                      Weekday ({weekendStats.weekday.count} txns)
-                                    </span>
-                                    <span className="text-sm font-bold text-green-500">
-                                      {formatCurrency(weekendStats.weekday.total)}
-                                    </span>
-                                  </div>
-                                  <div className="w-full h-3 bg-muted rounded-full overflow-hidden">
-                                    <div
-                                      className="h-full bg-gradient-to-r from-green-500 to-emerald-500 rounded-full transition-all duration-700"
-                                      style={{
-                                        width: `${(weekendStats.weekday.total / (weekendStats.weekend.total + weekendStats.weekday.total)) * 100}%`
-                                      }}
-                                    />
-                                  </div>
+                                <div className="text-right">
+                                  <p className="text-sm text-muted-foreground">Transactions</p>
+                                  <p className="text-2xl font-bold text-foreground">
+                                    {transactionsSummary.transaction_count}
+                                  </p>
                                 </div>
                               </div>
-                            </div>
-                          )}
+                            )}
 
-                          {/* Smart Recommendations */}
-                          {recommendations.length > 0 && (
-                            <div className="mb-6 p-5 bg-blue-500/5 border border-blue-500/20 rounded-lg">
-                              <div className="flex items-start space-x-3">
-                                <svg className="w-6 h-6 text-blue-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                <div className="flex-1">
-                                  <h5 className="text-sm font-bold text-blue-600 mb-2">💡 Smart Tips</h5>
-                                  <ul className="space-y-1.5">
-                                    {recommendations.map((rec, idx) => (
-                                      <li key={idx} className="text-sm text-foreground flex items-start">
-                                        <span className="mr-2">•</span>
-                                        <span>{rec}</span>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              </div>
-                            </div>
-                          )}
+                            {/* Transactions List */}
+                            <div className="space-y-3">
+                              {(() => {
+                                const visibleCount = visibleTransactionCount[selectedInsight.id] || 5;
+                                const visibleTxns = transactions.slice(0, visibleCount);
+                                const topExpenses = getTopExpenses(transactions);
 
-                          {/* Transactions List */}
-                          <div>
-                            <h4 className="font-semibold text-foreground mb-3">Linked Transactions</h4>
-
-                            {/* Grouped by Weekend */}
-                            {weekendGroups.length > 0 ? (
-                              <div className="space-y-4">
-                                {weekendGroups.map((group, groupIdx) => (
-                                  <div key={group.weekend} className="animate-fade-in" style={{ animationDelay: `${groupIdx * 0.1}s` }}>
-                                    <div className="mb-3 p-3 bg-red-500/5 border border-red-500/20 rounded-lg">
-                                      <div className="flex items-center justify-between">
-                                        <h5 className="text-sm font-bold text-red-600">
-                                          Weekend of {formatDate(group.weekend)}
-                                        </h5>
-                                        <span className="text-sm font-semibold text-red-600">
-                                          {group.transactions.length} transactions • {formatCurrency(group.total)}
-                                        </span>
-                                      </div>
-                                    </div>
-
-                                    <div className="space-y-2 ml-4">
-                                      {group.transactions.map((txn, txnIdx) => (
-                                        <div
-                                          key={txn.id}
-                                          className="p-4 bg-background rounded-lg border border-border hover:border-red-500/50 hover:shadow-md transition-all duration-200 hover:scale-[1.01] animate-slide-in"
-                                          style={{ animationDelay: `${(groupIdx * 0.1) + (txnIdx * 0.05)}s` }}
-                                        >
-                                          <div className="flex items-center justify-between">
-                                            <div className="flex-1">
-                                              <div className="flex items-center space-x-2 mb-1">
-                                                <h6 className="font-semibold text-foreground">{txn.merchant_name}</h6>
-                                                {topExpenses.has(txn.id) && (
-                                                  <span className="px-2 py-1 bg-red-500/10 text-red-600 text-xs font-bold rounded flex items-center space-x-1">
-                                                    <span>🔥</span>
-                                                    <span>Top Expense</span>
-                                                  </span>
-                                                )}
-                                              </div>
-                                              <div className="flex items-center space-x-3 text-sm text-muted-foreground">
-                                                <span>{formatDate(txn.transaction_date)}</span>
-                                                <span>•</span>
-                                                <span className="font-medium">{txn.category_name}</span>
-                                              </div>
-                                              {txn.description && (
-                                                <p className="text-xs text-muted-foreground mt-1">{txn.description}</p>
-                                              )}
-                                            </div>
-                                            <div className="text-right ml-4">
-                                              <p className="text-lg font-bold text-foreground">
-                                                {formatCurrency(txn.amount)}
-                                              </p>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              // Regular List (for non-weekend insights)
-                              <div className="space-y-2">
-                                {transactions.map((txn, idx) => (
+                                return visibleTxns.map((txn, idx) => (
                                   <div
                                     key={txn.id}
-                                    className="p-4 bg-background rounded-lg border border-border hover:border-primary/50 hover:shadow-md transition-all duration-200 hover:scale-[1.01] animate-slide-in"
+                                    className="p-5 bg-background rounded-xl border border-border hover:border-primary/50 hover:shadow-lg transition-all duration-200 animate-slide-in"
                                     style={{ animationDelay: `${idx * 0.05}s` }}
                                   >
-                                    <div className="flex items-center justify-between">
-                                      <div className="flex-1">
-                                        <div className="flex items-center space-x-2 mb-1">
-                                          <h6 className="font-semibold text-foreground">{txn.merchant_name}</h6>
+                                    <div className="flex items-center gap-4">
+                                      {/* Category Icon */}
+                                      <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center text-2xl flex-shrink-0">
+                                        {getCategoryIcon(txn.category_name)}
+                                      </div>
+
+                                      {/* Transaction Details */}
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                          <h6 className="font-bold text-foreground text-base">{txn.merchant_name}</h6>
                                           {topExpenses.has(txn.id) && (
-                                            <span className="px-2 py-1 bg-amber-500/10 text-amber-600 text-xs font-bold rounded flex items-center space-x-1">
+                                            <span className="px-2 py-1 bg-amber-500/10 text-amber-600 text-xs font-bold rounded-lg flex items-center gap-1">
                                               <span>🔥</span>
                                               <span>Top Expense</span>
                                             </span>
                                           )}
                                         </div>
-                                        <div className="flex items-center space-x-3 text-sm text-muted-foreground">
-                                          <span>{formatDate(txn.transaction_date)}</span>
+                                        <div className="flex items-center gap-3 text-sm text-muted-foreground mb-1 flex-wrap">
+                                          <span className="flex items-center gap-1.5">
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                            </svg>
+                                            {formatDate(txn.transaction_date)}
+                                          </span>
                                           <span>•</span>
-                                          <span className="font-medium">{txn.category_name}</span>
+                                          <span className="font-semibold">{txn.category_name}</span>
                                         </div>
                                         {txn.description && (
-                                          <p className="text-xs text-muted-foreground mt-1">{txn.description}</p>
+                                          <p className="text-xs text-muted-foreground">{txn.description}</p>
                                         )}
                                       </div>
-                                      <div className="text-right ml-4">
-                                        <p className="text-lg font-bold text-foreground">
+
+                                      {/* Amount */}
+                                      <div className="text-right flex-shrink-0">
+                                        <p className="text-xl font-bold text-foreground">
                                           {formatCurrency(txn.amount)}
                                         </p>
                                       </div>
                                     </div>
                                   </div>
-                                ))}
+                                ));
+                              })()}
+                            </div>
+
+                            {/* Show More / Show All Buttons */}
+                            {transactions.length > (visibleTransactionCount[selectedInsight.id] || 5) && (
+                              <div className="mt-4 flex items-center justify-center gap-3">
+                                <button
+                                  onClick={() => loadMoreTransactions(selectedInsight.id)}
+                                  className="px-6 py-2.5 bg-muted hover:bg-muted/80 text-foreground font-semibold rounded-lg transition-colors flex items-center gap-2"
+                                >
+                                  <span>Show More</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    (+10 more)
+                                  </span>
+                                </button>
+                                <button
+                                  onClick={() => showAllTransactions(selectedInsight.id)}
+                                  className="px-6 py-2.5 bg-primary hover:bg-primary/90 text-white font-semibold rounded-lg transition-colors flex items-center gap-2"
+                                >
+                                  <span>Show All</span>
+                                  <span className="text-xs opacity-80">
+                                    ({transactions.length} total)
+                                  </span>
+                                </button>
                               </div>
                             )}
-                          </div>
-                        </div>
+                          </>
+                        ) : (
+                          <p className="text-center text-muted-foreground py-8">
+                            No transactions available for this insight.
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
-                );
-              })}
+                </div>
+
+                {/* Modal Footer */}
+                <div className="p-6 border-t border-border bg-muted/20">
+                  <div className="flex items-center justify-between gap-4">
+                    <button
+                      onClick={() => {
+                        handleDismiss(selectedInsight.id);
+                      }}
+                      className="px-6 py-2.5 bg-muted hover:bg-muted/80 text-foreground font-semibold rounded-xl transition-colors"
+                    >
+                      Dismiss Insight
+                    </button>
+                    <button
+                      onClick={handleCloseModal}
+                      className="px-6 py-2.5 gradient-indigo-purple text-white font-semibold rounded-xl btn-hover-accent shadow-lg"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </main>

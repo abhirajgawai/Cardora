@@ -396,6 +396,7 @@ async def upload_statement(
             amount=Decimal(str(trans_data["amount"])),
             transaction_date=trans_date,
             description=trans_data.get("description"),
+            category_auto=trans_data.get("category", "unknown"),  # AI-categorized merchant type
             statement_month=statement_month,
             statement_year=statement_year,
             is_recurring=trans_data.get("is_recurring", False),

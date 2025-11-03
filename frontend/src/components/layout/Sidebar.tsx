@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ThemeToggle from "@/components/common/ThemeToggle";
+import { getCurrentUser } from "@/lib/api/auth";
+import { User } from "@/models";
 
 interface NavItem {
   name: string;
@@ -15,6 +17,21 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+
+  // Fetch current user on mount
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const userData = await getCurrentUser();
+        setUser(userData);
+      } catch (error) {
+        console.error("Failed to fetch user:", error);
+      }
+    };
+
+    fetchUser();
+  }, []);
 
   const navItems: NavItem[] = [
     {
@@ -130,16 +147,20 @@ export default function Sidebar() {
         <div className="px-4 py-3 mb-2">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-full bg-sidebar-primary flex items-center justify-center text-white font-semibold">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
+              {user?.full_name ? (
+                user.full_name.charAt(0).toUpperCase()
+              ) : (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-white truncate">
-                User Account
+                {user?.full_name || 'Loading...'}
               </p>
               <p className="text-xs text-sidebar-foreground/60 truncate">
-                user@example.com
+                {user?.email || ''}
               </p>
             </div>
           </div>
