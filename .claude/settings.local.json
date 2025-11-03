@@ -30,7 +30,21 @@
       "Bash(mkdir:*)",
       "Bash(git add:*)",
       "Bash(git clean:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(node update_imports.js:*)",
+      "Bash(timeout 10 npm run dev:*)",
+      "Bash(git -C E:Cardora status --short frontend/)",
+      "Bash(cat:*)",
+      "Bash(find:*)",
+      "Bash(for dir in /e/Cardora/app/features/*/)",
+      "Bash(ls:*)",
+      "Bash(awk:*)",
+      "Bash(done)",
+      "Bash(for dir in */)",
+      "Bash(do echo \"=== $dir%/ ===\")",
+      "Bash(while read dir)",
+      "Bash(do echo \"=== $dir ===\")",
+      "Bash(git mv:*)"
     ],
     "deny": [],
     "ask": []

@@ -27,13 +27,13 @@ from app.features.cards.models import CreditCard
 from app.features.categories.models import Category
 from app.features.statements.models import Statement
 from app.features.transactions.models import Transaction
-from app.features.auth.schemas import (
+from app.features.statements.schemas import (
     StatementResponse,
     StatementUploadResponse,
     StatementListResponse,
-    TransactionResponse,
     StatementStatusResponse
 )
+from app.features.transactions.schemas import TransactionResponse
 from app.features.auth.jwt import get_current_user
 from app.core.gemini_service import (
     process_statement_pdf,

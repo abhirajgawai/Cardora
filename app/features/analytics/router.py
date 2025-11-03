@@ -27,7 +27,7 @@ from app.features.auth.models import User
 from app.features.cards.models import CreditCard
 from app.features.transactions.models import Transaction
 from app.features.categories.models import Category
-from app.features.auth.schemas import (
+from app.features.analytics.schemas import (
     MonthlyAnalysisResponse,
     ComparisonResponse,
     TrendAnalysisResponse,

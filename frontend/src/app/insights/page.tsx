@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { getInsights, getInsightTransactions, dismissInsight, generateInsights, Insight, InsightTransaction } from '@/lib/api/insights';
-import Sidebar from '@/components/layout/Sidebar';
+import { getInsights, getInsightTransactions, dismissInsight, generateInsights, Insight, InsightTransaction } from '@/features/insights';
+import Sidebar from '@/shared/components/layout/Sidebar';
 
 interface GroupedTransactions {
   weekend: string;
@@ -487,7 +487,7 @@ export default function InsightsPage() {
                           Save Monthly
                         </p>
                         <p className="text-2xl font-bold text-green-600">
-                          {formatCurrency(insight.potential_savings)}
+                          {formatCurrency(insight.potential_savings ?? 0)}
                         </p>
                       </div>
                     ) : (

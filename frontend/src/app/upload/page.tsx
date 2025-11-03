@@ -2,15 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getCurrentUser } from '@/lib/api/auth';
-import { uploadStatement } from '@/lib/api/statements';
-import { User, StatementUploadResponse } from '@/models';
-import { extractErrorMessage, isAuthError } from '@/lib/utils/errorHandler';
-import Sidebar from '@/components/layout/Sidebar';
-import Footer from '@/components/layout/Footer';
-import UploadZone from '@/components/upload/UploadZone';
-import EnhancedUploadProgress from '@/components/upload/EnhancedUploadProgress';
-import UploadResults from '@/components/upload/UploadResults';
+import { getCurrentUser } from '@/features/auth';
+import { uploadStatement } from '@/features/statements';
+import { User } from '@/features/auth/types';
+import { StatementUploadResponse } from '@/features/statements/types';
+import { extractErrorMessage, isAuthError } from '@/shared/lib/utils/errorHandler';
+import Sidebar from '@/shared/components/layout/Sidebar';
+import Footer from '@/shared/components/layout/Footer';
+import UploadZone from '@/features/statements/components/UploadZone';
+import EnhancedUploadProgress from '@/features/statements/components/EnhancedUploadProgress';
+import UploadResults from '@/features/statements/components/UploadResults';
 
 type UploadStage = 'idle' | 'uploading' | 'extracting' | 'processing' | 'complete' | 'error';
 

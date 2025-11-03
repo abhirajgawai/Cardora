@@ -19,7 +19,7 @@ from typing import List
 from app.core.database import get_db
 from app.features.auth.models import User
 from app.features.categories.models import Category
-from app.features.auth.schemas import CategoryResponse
+from app.features.categories.schemas import CategoryResponse
 from app.features.auth.jwt import get_current_user
 
 # ═══════════════════════════════════════════════════════════════════

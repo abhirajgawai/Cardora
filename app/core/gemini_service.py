@@ -36,7 +36,7 @@ import google.generativeai as genai
 from PyPDF2 import PdfReader
 
 # Import category mapping
-from app.models.category import Category
+from app.features.categories.models import Category
 from app.core.config import settings
 
 
@@ -476,7 +476,7 @@ def process_statement_pdf(
 
     Usage:
         from app.core.gemini_service import process_statement_pdf
-        from app.models.category import Category
+        from app.features.categories.models import Category
 
         # Get categories from DB
         categories = db.query(Category).filter(Category.user_id == None).all()
@@ -604,7 +604,7 @@ def match_category_by_name(
 # Example 1: Process a PDF statement
 from app.core.gemini_service import process_statement_pdf
 from app.core.database import SessionLocal
-from app.models.category import Category
+from app.features.categories.models import Category
 
 db = SessionLocal()
 

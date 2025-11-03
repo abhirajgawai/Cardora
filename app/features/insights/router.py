@@ -19,13 +19,11 @@ from app.features.transactions.models import Transaction
 from app.features.statements.models import Statement
 from app.features.categories.models import Category
 from app.features.auth.jwt import get_current_user
-from app.services.insights import (
-    WeekendSpendingService,
-    RecurringHabitService,
-    SmartSpendingPraiseService,
-    SubscriptionDetectionService,
-    TransportSavingsService
-)
+from app.features.insights.generators.weekend_spending import WeekendSpendingService
+from app.features.insights.generators.recurring_habit import RecurringHabitService
+from app.features.insights.generators.smart_spending_praise import SmartSpendingPraiseService
+from app.features.insights.generators.subscription_detection import SubscriptionDetectionService
+from app.features.insights.generators.transport_savings import TransportSavingsService
 from app.features.insights.ai_insights import AIInsightsService
 from app.shared.insights_config import ANALYSIS_PERIOD, DUPLICATE_PREVENTION_PERIOD
 

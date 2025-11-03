@@ -21,7 +21,7 @@ from typing import List
 from app.core.database import get_db
 from app.features.auth.models import User
 from app.features.cards.models import CreditCard
-from app.features.auth.schemas import CreditCardResponse, CreditCardUpdate
+from app.features.cards.schemas import CreditCardResponse, CreditCardUpdate
 from app.features.auth.jwt import get_current_user
 
 # ═══════════════════════════════════════════════════════════════════

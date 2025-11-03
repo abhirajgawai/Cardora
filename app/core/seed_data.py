@@ -29,7 +29,7 @@ import sys
 from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
-from app.models.category import Category
+from app.features.categories.models import Category
 
 
 # Default system categories (user_id = NULL for system-wide)

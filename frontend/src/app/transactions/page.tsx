@@ -1,18 +1,21 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { getCurrentUser } from '@/lib/api/auth';
-import { getTransactions } from '@/lib/api/transactions';
-import { getCards } from '@/lib/api/cards';
-import { getStatements } from '@/lib/api/statements';
-import { User, Transaction, CreditCard, Statement } from '@/models';
-import { extractErrorMessage, isAuthError } from '@/lib/utils/errorHandler';
-import { formatCardDisplayName } from '@/lib/utils/cardFormatter';
-import Sidebar from '@/components/layout/Sidebar';
-import Footer from '@/components/layout/Footer';
-import { SearchableSelect } from '@/components/ui/SearchableSelect';
-import MonthYearPicker, { MonthYearValue } from '@/components/common/MonthYearPicker';
+import { getCurrentUser } from '@/features/auth';
+import { getTransactions } from '@/features/transactions';
+import { getCards } from '@/features/cards';
+import { getStatements } from '@/features/statements';
+import { User } from '@/features/auth/types';
+import { Transaction } from '@/features/transactions/types';
+import { CreditCard } from '@/features/cards/types';
+import { Statement } from '@/features/statements/types';
+import { extractErrorMessage, isAuthError } from '@/shared/lib/utils/errorHandler';
+import { formatCardDisplayName } from '@/shared/lib/utils/cardFormatter';
+import Sidebar from '@/shared/components/layout/Sidebar';
+import Footer from '@/shared/components/layout/Footer';
+import { SearchableSelect } from '@/shared/components/ui/SearchableSelect';
+import MonthYearPicker, { MonthYearValue } from '@/shared/components/common/MonthYearPicker';
 import {
   Table,
   TableBody,
@@ -20,14 +23,17 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from '@/shared/components/ui/table';
+
+// Force dynamic rendering for this page since it uses useSearchParams
+export const dynamic = 'force-dynamic';
 
 const ITEMS_PER_PAGE = 25;
 
 type SortField = 'date' | 'amount' | 'description' | 'category' | 'merchant';
 type SortDirection = 'asc' | 'desc';
 
-export default function TransactionsPage() {
+function TransactionsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [user, setUser] = useState<User | null>(null);
@@ -978,5 +984,21 @@ export default function TransactionsPage() {
         <Footer />
       </div>
     </div>
+  );
+}
+
+// Wrap in Suspense to handle useSearchParams
+export default function TransactionsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" />
+          <p className="mt-2 text-sm text-muted-foreground">Loading transactions...</p>
+        </div>
+      </div>
+    }>
+      <TransactionsPageContent />
+    </Suspense>
   );
 }

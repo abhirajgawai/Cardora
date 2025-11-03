@@ -2,19 +2,21 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { getTransactions } from '@/lib/api/transactions';
-import { getCards } from '@/lib/api/cards';
-import { getInsights, Insight } from '@/lib/api/insights';
-import { getStatements } from '@/lib/api/statements';
-import { Transaction, CreditCard, Statement } from '@/models';
-import { extractErrorMessage, isAuthError } from '@/lib/utils/errorHandler';
-import { formatCardDisplayName } from '@/lib/utils/cardFormatter';
-import Sidebar from '@/components/layout/Sidebar';
-import Footer from '@/components/layout/Footer';
-import TimeRangeSelector, { TimeRange } from '@/components/common/TimeRangeSelector';
-import MonthYearPicker, { MonthYearValue } from '@/components/common/MonthYearPicker';
-import { SearchableSelect } from '@/components/ui/SearchableSelect';
-import InsightsList from '@/components/insights/InsightsList';
+import { getTransactions } from '@/features/transactions';
+import { getCards } from '@/features/cards';
+import { getInsights, Insight } from '@/features/insights';
+import { getStatements } from '@/features/statements';
+import { Transaction } from '@/features/transactions/types';
+import { CreditCard } from '@/features/cards/types';
+import { Statement } from '@/features/statements/types';
+import { extractErrorMessage, isAuthError } from '@/shared/lib/utils/errorHandler';
+import { formatCardDisplayName } from '@/shared/lib/utils/cardFormatter';
+import Sidebar from '@/shared/components/layout/Sidebar';
+import Footer from '@/shared/components/layout/Footer';
+import TimeRangeSelector, { TimeRange } from '@/shared/components/common/TimeRangeSelector';
+import MonthYearPicker, { MonthYearValue } from '@/shared/components/common/MonthYearPicker';
+import { SearchableSelect } from '@/shared/components/ui/SearchableSelect';
+import InsightsList from '@/features/insights/components/InsightsList';
 import {
   Table,
   TableBody,
@@ -22,7 +24,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from '@/shared/components/ui/table';
 import {
   Dialog,
   DialogContent,
@@ -31,14 +33,14 @@ import {
   DialogDescription,
   DialogBody,
   DialogFooter,
-} from '@/components/ui/dialog';
+} from '@/shared/components/ui/dialog';
 import {
   filterTransactionsByTimeRange,
   getTimeRangeLabel,
   calculatePercentageChange,
   getPreviousPeriodDateRange,
   filterTransactionsByDateRange,
-} from '@/lib/utils/dateFilters';
+} from '@/shared/lib/utils/dateFilters';
 import {
   BarChart,
   Bar,

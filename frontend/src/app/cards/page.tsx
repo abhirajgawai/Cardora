@@ -2,14 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getCards, updateCard, deleteCard } from '@/lib/api/cards';
-import { getTransactions } from '@/lib/api/transactions';
-import { CreditCard, Transaction } from '@/models';
-import { extractErrorMessage, isAuthError } from '@/lib/utils/errorHandler';
-import { formatCardType, formatBankName, formatCardDisplayName } from '@/lib/utils/cardFormatter';
-import Sidebar from '@/components/layout/Sidebar';
-import Footer from '@/components/layout/Footer';
-import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { getCards, updateCard, deleteCard } from '@/features/cards';
+import { getTransactions } from '@/features/transactions';
+import { CreditCard } from '@/features/cards/types';
+import { Transaction } from '@/features/transactions/types';
+import { extractErrorMessage, isAuthError } from '@/shared/lib/utils/errorHandler';
+import { formatCardType, formatBankName, formatCardDisplayName } from '@/shared/lib/utils/cardFormatter';
+import Sidebar from '@/shared/components/layout/Sidebar';
+import Footer from '@/shared/components/layout/Footer';
+import { SearchableSelect } from '@/shared/components/ui/SearchableSelect';
 
 // Card brand colors
 const CARD_COLORS: { [key: string]: { bg: string; border: string; accent: string } } = {

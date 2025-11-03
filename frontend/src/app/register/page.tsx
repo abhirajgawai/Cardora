@@ -7,8 +7,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import Link from "next/link";
-import { register as registerUser, login } from "@/lib/api/auth";
-import { extractErrorMessage } from "@/lib/utils/errorHandler";
+import { register as registerUser, login } from "@/features/auth";
+import { extractErrorMessage } from "@/shared/lib/utils/errorHandler";
 
 // Validation schema
 const registerSchema = z

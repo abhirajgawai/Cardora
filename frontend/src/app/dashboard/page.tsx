@@ -3,17 +3,21 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { getCurrentUser } from '@/lib/api/auth';
-import { getCards } from '@/lib/api/cards';
-import { getTransactions } from '@/lib/api/transactions';
-import { getInsights, generateInsights, dismissInsight, Insight } from '@/lib/api/insights';
-import { getStatements } from '@/lib/api/statements';
-import { User, CreditCard, Transaction, Statement } from '@/models';
-import { DashboardStats, LineChartData, PieChartData } from '@/types';
-import { extractErrorMessage, isAuthError } from '@/lib/utils/errorHandler';
-import Sidebar from '@/components/layout/Sidebar';
-import Footer from '@/components/layout/Footer';
-import HeroInsightCard from '@/components/insights/HeroInsightCard';
+import { getCurrentUser } from '@/features/auth';
+import { getCards } from '@/features/cards';
+import { getTransactions } from '@/features/transactions';
+import { getInsights, generateInsights, dismissInsight, Insight } from '@/features/insights';
+import { getStatements } from '@/features/statements';
+import { User } from '@/features/auth/types';
+import { CreditCard } from '@/features/cards/types';
+import { Transaction } from '@/features/transactions/types';
+import { Statement } from '@/features/statements/types';
+import { DashboardStats } from '@/shared/types';
+import { LineChartData, PieChartData } from '@/features/analytics/types/chart';
+import { extractErrorMessage, isAuthError } from '@/shared/lib/utils/errorHandler';
+import Sidebar from '@/shared/components/layout/Sidebar';
+import Footer from '@/shared/components/layout/Footer';
+import HeroInsightCard from '@/features/insights/components/HeroInsightCard';
 import {
   LineChart,
   Line,
@@ -1036,7 +1040,7 @@ export default function DashboardPage() {
                   <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                     {missingPeriods.map((period, index) => {
                       // Determine styling based on whether statement is generated
-                      const isPending = !period.statementGenerated && period.statementGenerationDate;
+                      const isPending = !period.statementGenerated && !!period.statementGenerationDate;
                       const bgColor = isPending ? 'bg-blue-500/5' : 'bg-amber-500/5';
                       const borderColor = isPending ? 'border-blue-500/20' : 'border-amber-500/20';
                       const hoverColor = isPending ? 'hover:bg-blue-500/10' : 'hover:bg-amber-500/10';
