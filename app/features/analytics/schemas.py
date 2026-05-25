@@ -12,7 +12,6 @@ from datetime import datetime
 
 
 # ═══════════════════════════════════════════════════════════════════
-# MONTHLY ANALYSIS SCHEMAS
 # ═══════════════════════════════════════════════════════════════════
 
 class CardSpending(BaseModel):
@@ -43,7 +42,6 @@ class MonthlyAnalysisResponse(BaseModel):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# COMPARISON SCHEMAS
 # ═══════════════════════════════════════════════════════════════════
 
 class MonthData(BaseModel):
@@ -75,7 +73,6 @@ class ComparisonResponse(BaseModel):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# TREND ANALYSIS SCHEMAS
 # ═══════════════════════════════════════════════════════════════════
 
 class MonthlyTotal(BaseModel):
@@ -103,7 +100,6 @@ class TrendAnalysisResponse(BaseModel):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# ANNUAL ANALYSIS SCHEMAS
 # ═══════════════════════════════════════════════════════════════════
 
 class AnnualAnalysisResponse(BaseModel):
@@ -120,7 +116,6 @@ class AnnualAnalysisResponse(BaseModel):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# PER-CARD ANALYSIS SCHEMAS
 # ═══════════════════════════════════════════════════════════════════
 
 class CardAnalysis(BaseModel):
@@ -149,7 +144,6 @@ class CardsAnalysisResponse(BaseModel):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# CATEGORY DEEP DIVE SCHEMAS
 # ═══════════════════════════════════════════════════════════════════
 
 class MerchantSpending(BaseModel):

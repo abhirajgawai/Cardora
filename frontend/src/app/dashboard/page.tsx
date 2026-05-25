@@ -6,7 +6,6 @@ import { toast } from 'sonner';
 import { getCurrentUser } from '@/features/auth';
 import { getCards } from '@/features/cards';
 import { getTransactions } from '@/features/transactions';
-import { getInsights, generateInsights, dismissInsight, Insight } from '@/features/insights';
 import { getStatements } from '@/features/statements';
 import { User } from '@/features/auth/types';
 import { CreditCard } from '@/features/cards/types';
@@ -15,9 +14,11 @@ import { Statement } from '@/features/statements/types';
 import { DashboardStats } from '@/shared/types';
 import { LineChartData, PieChartData } from '@/features/analytics/types/chart';
 import { extractErrorMessage, isAuthError } from '@/shared/lib/utils/errorHandler';
+import { formatCurrency } from '@/shared/lib/utils/formatCurrency';
+import { CHART_COLORS } from '@/shared/lib/utils/colors';
 import Sidebar from '@/shared/components/layout/Sidebar';
 import Footer from '@/shared/components/layout/Footer';
-import HeroInsightCard from '@/features/insights/components/HeroInsightCard';
+import PaymentAlertBanner from '@/features/insights/components/PaymentAlertBanner';
 import {
   LineChart,
   Line,
@@ -29,16 +30,6 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
-// Cardora V2 Refined Fintech Color Palette
-const COLORS = [
-  '#4B6EF5', // Modern Indigo - primary brand color
-  '#00E0A1', // Teal Mint - accent for positive metrics
-  '#F59E0B', // Amber - warning/highlight
-  '#10B981', // Emerald - success
-  '#8B5CF6', // Purple - secondary
-  '#60A5FA', // Sky Blue - supplementary
-  '#FB923C', // Coral - warm accent
-];
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -49,18 +40,12 @@ export default function DashboardPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [statements, setStatements] = useState<Statement[]>([]);
 
-  // Insights state
-  const [insights, setInsights] = useState<Insight[]>([]);
-  const [insightsLoading, setInsightsLoading] = useState(false);
-  const [insightsGenerating, setInsightsGenerating] = useState(false);
-
   useEffect(() => {
     const fetchData = async () => {
       // Check if user is authenticated before making API calls
       if (typeof window !== 'undefined') {
         const token = localStorage.getItem('access_token');
         if (!token) {
-          console.log('No auth token found, redirecting to login');
           router.push('/login');
           return;
         }
@@ -78,53 +63,30 @@ export default function DashboardPage() {
 
         try {
           cardsData = await getCards();
-          console.log('Cards data:', cardsData);
-          // Ensure it's an array
-          if (!Array.isArray(cardsData)) {
-            console.warn('Cards data is not an array:', cardsData);
-            cardsData = [];
-          }
+          if (!Array.isArray(cardsData)) cardsData = [];
         } catch (cardError) {
-          console.warn('Failed to fetch cards:', extractErrorMessage(cardError));
           cardsData = [];
         }
         setCards(cardsData);
 
         try {
           transactionsData = await getTransactions({ limit: 10000 });
-          console.log('Transactions data:', transactionsData);
-          // Ensure it's an array
-          if (!Array.isArray(transactionsData)) {
-            console.warn('Transactions data is not an array:', transactionsData);
-            transactionsData = [];
-          }
+          if (!Array.isArray(transactionsData)) transactionsData = [];
         } catch (transactionError) {
-          console.warn('Failed to fetch transactions:', extractErrorMessage(transactionError));
           transactionsData = [];
         }
         setTransactions(transactionsData);
 
         try {
           statementsData = await getStatements();
-          console.log('Statements data:', statementsData);
-          // Ensure it's an array
-          if (!Array.isArray(statementsData)) {
-            console.warn('Statements data is not an array:', statementsData);
-            statementsData = [];
-          }
+          if (!Array.isArray(statementsData)) statementsData = [];
         } catch (statementError) {
-          console.warn('Failed to fetch statements:', extractErrorMessage(statementError));
           statementsData = [];
         }
         setStatements(statementsData);
       } catch (error) {
-        const errorMessage = extractErrorMessage(error);
-        console.error('Dashboard error:', errorMessage);
-        // Don't handle auth errors here - let the axios interceptor handle 401 redirects
-        // Just log other errors and continue with empty data
         if (!isAuthError(error)) {
-          console.error('Failed to load dashboard data:', errorMessage);
-          setError(errorMessage);
+          setError(extractErrorMessage(error));
         }
       } finally {
         setLoading(false);
@@ -133,102 +95,6 @@ export default function DashboardPage() {
 
     fetchData();
   }, [router]);
-
-  // Fetch insights on mount
-  useEffect(() => {
-    const fetchInsightsData = async () => {
-      if (!user) return;
-
-      try {
-        setInsightsLoading(true);
-        const response = await getInsights(false); // Don't include dismissed
-        setInsights(response.insights);
-      } catch (error) {
-        console.error('Failed to fetch insights:', error);
-      } finally {
-        setInsightsLoading(false);
-      }
-    };
-
-    fetchInsightsData();
-  }, [user]);
-
-  // Handle generating insights
-  const handleGenerateInsights = async () => {
-    try {
-      setInsightsGenerating(true);
-      const response = await generateInsights();
-
-      // Show success message with toast
-      if (response.generated > 0) {
-        toast.success('Insights Generated', {
-          description: `Successfully generated ${response.generated} new insight(s)`,
-        });
-        // Refresh insights list
-        const updatedInsights = await getInsights(false);
-        setInsights(updatedInsights.insights);
-      } else {
-        toast.info('No New Insights', {
-          description: response.message || 'No new insights generated based on your spending patterns.',
-        });
-      }
-    } catch (error: any) {
-      console.error('Failed to generate insights:', error);
-
-      // Extract detailed error information
-      let errorMessage = 'Failed to generate insights. Please try again.';
-      let errorDetails = '';
-
-      if (error.response?.data) {
-        const detail = error.response.data.detail;
-
-        // Check if detail is an object with error information
-        if (typeof detail === 'object' && detail !== null) {
-          errorMessage = detail.message || detail.error || errorMessage;
-          if (detail.error_type) {
-            errorDetails = `Error Type: ${detail.error_type}`;
-          }
-          if (detail.hint) {
-            errorDetails += errorDetails ? `\n${detail.hint}` : detail.hint;
-          }
-        } else if (typeof detail === 'string') {
-          errorMessage = detail;
-        }
-      }
-
-      // Log full error to console for debugging
-      console.error('Full error details:', {
-        message: errorMessage,
-        details: errorDetails,
-        response: error.response?.data,
-        status: error.response?.status,
-      });
-
-      toast.error('Generation Failed', {
-        description: errorDetails ? `${errorMessage}\n\n${errorDetails}` : errorMessage,
-        duration: 10000, // Show error longer (10 seconds)
-      });
-    } finally {
-      setInsightsGenerating(false);
-    }
-  };
-
-  // Handle dismissing an insight
-  const handleDismissInsight = async (insightId: string) => {
-    try {
-      await dismissInsight(insightId);
-      // Remove from local state
-      setInsights(prev => prev.filter(i => i.id !== insightId));
-      toast.success('Insight Dismissed', {
-        description: 'This insight has been removed from your dashboard.',
-      });
-    } catch (error) {
-      console.error('Failed to dismiss insight:', error);
-      toast.error('Dismiss Failed', {
-        description: 'Failed to dismiss insight. Please try again.',
-      });
-    }
-  };
 
   // Calculate stats for all transactions
   const stats = useMemo(() => {
@@ -334,7 +200,7 @@ export default function DashboardPage() {
         count: data.count,
         percentage: total > 0 ? Math.round((data.value / total) * 100) : 0,
         icon: getCategoryIcon(name),
-        color: COLORS[index % COLORS.length],
+        color: CHART_COLORS[index % CHART_COLORS.length],
       }));
   }, [transactions]);
 
@@ -555,32 +421,6 @@ export default function DashboardPage() {
               </p>
             </div>
             <div className="flex items-center space-x-4">
-              {/* Generate Insights Button */}
-              <button
-                onClick={handleGenerateInsights}
-                disabled={insightsGenerating || statements.length < 2}
-                className="flex items-center space-x-2 px-6 py-2.5 gradient-indigo-purple text-white font-semibold rounded-xl btn-hover-accent shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                title={
-                  statements.length < 2
-                    ? `Upload at least 2 statements to generate insights (currently have ${statements.length})`
-                    : 'Generate AI Insights'
-                }
-              >
-                {insightsGenerating ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>Generating...</span>
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                    </svg>
-                    <span>Generate Insights</span>
-                  </>
-                )}
-              </button>
-
               {/* Upload Statement Button - Teal Accent for Pop */}
               <button
                 onClick={() => router.push('/upload')}
@@ -602,36 +442,8 @@ export default function DashboardPage() {
 
         {/* Dashboard Content */}
         <main className="px-8 py-5">
-          {/* Insights Requirement Notice */}
-          {statements.length < 2 && (
-            <div className="mb-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 animate-fade-in">
-              <div className="flex items-start space-x-3">
-                <div className="flex-shrink-0">
-                  <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-1">
-                    AI Insights Requires More Data
-                  </h3>
-                  <p className="text-sm text-blue-700 dark:text-blue-300 mb-2">
-                    You currently have {statements.length} statement{statements.length === 1 ? '' : 's'} uploaded.
-                    Upload at least 2 months of statements to unlock AI-powered spending insights.
-                  </p>
-                  <button
-                    onClick={() => router.push('/upload')}
-                    className="text-sm text-blue-600 dark:text-blue-400 font-medium hover:underline inline-flex items-center space-x-1"
-                  >
-                    <span>Upload more statements</span>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Payment Alerts */}
+          <PaymentAlertBanner />
 
           {/* KPI Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
@@ -648,7 +460,7 @@ export default function DashboardPage() {
                 Total Spending
               </h3>
               <p className="text-3xl font-bold text-card-foreground mb-2">
-                ${stats.totalSpending.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {formatCurrency(stats.totalSpending)}
               </p>
               <p className="text-xs text-muted-foreground">
                 {stats.transactionCount === 0 ? 'No transactions yet' : `Across ${stats.transactionCount} transactions`}
@@ -722,38 +534,6 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* AI Insights Section - Hero Card Only */}
-          {insights.length > 0 && (
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-xl font-bold text-foreground">Top Insight</h2>
-                  <p className="text-sm text-muted-foreground">Most important recommendation based on your spending</p>
-                </div>
-                {insights.length > 1 && (
-                  <button
-                    onClick={() => router.push('/insights')}
-                    className="px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary font-semibold rounded-lg transition-colors flex items-center space-x-2"
-                  >
-                    <span>View All ({insights.length})</span>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-              {/* Show only the first (most recent/important) insight */}
-              <div className="animate-slide-in" style={{ animationDelay: '0.6s' }}>
-                <HeroInsightCard
-                  insight={insights[0]}
-                  onDismiss={() => handleDismissInsight(insights[0].id)}
-                  onViewDetails={() => router.push('/insights')}
-                />
-              </div>
-            </div>
-          )}
-
-
           {/* Main Content Grid - Recent Transactions + Top Categories */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
             {/* Recent Transactions */}
@@ -784,7 +564,7 @@ export default function DashboardPage() {
                         <div className="flex items-center gap-3">
                           <div
                             className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
-                            style={{ backgroundColor: `${COLORS[index % COLORS.length]}15` }}
+                            style={{ backgroundColor: `${CHART_COLORS[index % CHART_COLORS.length]}15` }}
                           >
                             {getCategoryIcon(transaction.category?.name || 'Uncategorized')}
                           </div>
@@ -802,7 +582,7 @@ export default function DashboardPage() {
                         </div>
                         <div className="text-right">
                           <div className="font-bold text-sm text-foreground">
-                            ${Number(transaction.amount).toFixed(2)}
+                            {formatCurrency(transaction.amount)}
                           </div>
                           <div className="text-xs text-muted-foreground">
                             {transaction.category?.name || 'Other'}
@@ -866,7 +646,7 @@ export default function DashboardPage() {
                         </div>
                         <div className="text-right">
                           <div className="font-bold text-sm text-foreground">
-                            ${category.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {formatCurrency(category.value)}
                           </div>
                           <div className="text-xs text-muted-foreground">
                             {category.percentage}%
@@ -919,7 +699,7 @@ export default function DashboardPage() {
                 </div>
                 <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">This Month</h3>
                 <p className="text-2xl font-bold text-foreground mb-1">
-                  ${monthComparison.currentMonth.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {formatCurrency(monthComparison.currentMonth.total)}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {monthComparison.currentMonth.count} transaction{monthComparison.currentMonth.count !== 1 ? 's' : ''}
@@ -937,7 +717,7 @@ export default function DashboardPage() {
                 </div>
                 <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Last Month</h3>
                 <p className="text-2xl font-bold text-foreground mb-1">
-                  ${monthComparison.lastMonth.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {formatCurrency(monthComparison.lastMonth.total)}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {monthComparison.lastMonth.count} transaction{monthComparison.lastMonth.count !== 1 ? 's' : ''}
@@ -958,7 +738,7 @@ export default function DashboardPage() {
                   {topMerchant?.name || 'N/A'}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {topMerchant ? `${topMerchant.count} visit${topMerchant.count !== 1 ? 's' : ''} • $${topMerchant.total.toFixed(2)}` : 'No data'}
+                  {topMerchant ? `${topMerchant.count} visit${topMerchant.count !== 1 ? 's' : ''} • ${formatCurrency(topMerchant.total)}` : 'No data'}
                 </p>
               </div>
             </div>

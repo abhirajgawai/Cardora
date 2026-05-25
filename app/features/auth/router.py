@@ -21,15 +21,19 @@ from app.features.auth.password import hash_password, verify_password
 from app.features.auth.jwt import create_access_token, get_current_user
 from app.features.auth.password_reset import create_password_reset_token, verify_reset_token, clear_reset_token
 from app.core.email_service import send_password_reset_email
+from fastapi.responses import JSONResponse
+import json
+from datetime import datetime
+from app.features.cards.models import CreditCard
+from app.features.transactions.models import Transaction
+from app.features.statements.models import Statement
 
 
-# Router for /auth endpoints
 auth_router = APIRouter(
     prefix="/auth",
     tags=["Authentication"]
 )
 
-# Router for /users endpoints
 users_router = APIRouter(
     prefix="/users",
     tags=["Users"]
@@ -190,7 +194,6 @@ async def reset_password(
 
 
 # ═══════════════════════════════════════════════════════════════════
-# USER PROFILE ENDPOINTS
 # ═══════════════════════════════════════════════════════════════════
 
 @users_router.get(
@@ -204,3 +207,156 @@ async def get_current_user_profile(
 ):
     """Get current authenticated user's profile."""
     return UserResponse.model_validate(current_user)
+
+
+@users_router.get(
+    "/export",
+    status_code=status.HTTP_200_OK,
+    summary="Export all user data"
+)
+async def export_user_data(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Export all user data as JSON."""
+    try:
+        cards = db.query(CreditCard).filter(CreditCard.user_id == current_user.id).all()
+        transactions = db.query(Transaction).join(CreditCard).filter(CreditCard.user_id == current_user.id).all()
+        statements = db.query(Statement).filter(Statement.user_id == current_user.id).all()
+
+        export_data = {
+            "export_date": datetime.utcnow().isoformat(),
+            "user": {
+                "id": str(current_user.id),
+                "email": current_user.email,
+                "full_name": current_user.full_name,
+                "timezone": current_user.timezone,
+                "created_at": current_user.created_at.isoformat() if current_user.created_at else None
+            },
+            "cards": [
+                {
+                    "id": str(card.id),
+                    "bank_name": card.bank_name,
+                    "card_type": card.card_type,
+                    "last_four_digits": card.last_four_digits,
+                    "credit_limit": float(card.credit_limit) if card.credit_limit else None,
+                    "statement_day": card.statement_day,
+                    "is_active": card.is_active,
+                    "created_at": card.created_at.isoformat() if card.created_at else None
+                }
+                for card in cards
+            ],
+            "transactions": [
+                {
+                    "id": str(txn.id),
+                    "card_id": str(txn.card_id),
+                    "transaction_date": txn.transaction_date.isoformat() if txn.transaction_date else None,
+                    "merchant": txn.merchant,
+                    "amount": float(txn.amount),
+                    "category": txn.category,
+                    "description": txn.description,
+                    "is_recurring": txn.is_recurring
+                }
+                for txn in transactions
+            ],
+            "statements": [
+                {
+                    "id": str(stmt.id),
+                    "card_id": str(stmt.card_id),
+                    "statement_date": stmt.statement_date.isoformat() if stmt.statement_date else None,
+                    "due_date": stmt.due_date.isoformat() if stmt.due_date else None,
+                    "total_amount": float(stmt.total_amount) if stmt.total_amount else None,
+                    "minimum_payment": float(stmt.minimum_payment) if stmt.minimum_payment else None,
+                    "uploaded_at": stmt.uploaded_at.isoformat() if stmt.uploaded_at else None,
+                    "status": stmt.status
+                }
+                for stmt in statements
+            ],
+            "statistics": {
+                "total_cards": len(cards),
+                "total_transactions": len(transactions),
+                "total_statements": len(statements)
+            }
+        }
+
+        json_data = json.dumps(export_data, indent=2)
+        return JSONResponse(
+            content=export_data,
+            headers={
+                "Content-Disposition": f"attachment; filename=cardora-export-{datetime.utcnow().strftime('%Y%m%d')}.json"
+            }
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to export data: {str(e)}"
+        )
+
+
+@users_router.delete(
+    "/data",
+    status_code=status.HTTP_200_OK,
+    summary="Delete all user data"
+)
+async def delete_user_data(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Delete all user data (transactions, cards, statements) but keep the account."""
+    try:
+        cards = db.query(CreditCard).filter(CreditCard.user_id == current_user.id).all()
+        for card in cards:
+            db.query(Transaction).filter(Transaction.card_id == card.id).delete()
+
+        db.query(Statement).filter(Statement.user_id == current_user.id).delete()
+
+        db.query(CreditCard).filter(CreditCard.user_id == current_user.id).delete()
+
+        db.commit()
+
+        return {
+            "message": "All user data has been permanently deleted",
+            "deleted_at": datetime.utcnow().isoformat()
+        }
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete data: {str(e)}"
+        )
+
+
+@users_router.delete(
+    "/account",
+    status_code=status.HTTP_200_OK,
+    summary="Delete user account"
+)
+async def delete_user_account(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Permanently delete user account and all associated data."""
+    try:
+        cards = db.query(CreditCard).filter(CreditCard.user_id == current_user.id).all()
+        for card in cards:
+            db.query(Transaction).filter(Transaction.card_id == card.id).delete()
+
+        db.query(Statement).filter(Statement.user_id == current_user.id).delete()
+        db.query(CreditCard).filter(CreditCard.user_id == current_user.id).delete()
+
+        db.delete(current_user)
+        db.commit()
+
+        return {
+            "message": "Account and all associated data has been permanently deleted",
+            "deleted_at": datetime.utcnow().isoformat()
+        }
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete account: {str(e)}"
+        )

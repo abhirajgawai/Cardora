@@ -21,7 +21,7 @@ from app.features.cards.models import CreditCard
 from app.features.transactions.models import Transaction
 from app.features.statements.models import Statement
 from app.features.categories.models import Category
-from app.features.insights.models import Insight, PaymentAlert
+from app.features.insights.models import PaymentAlert
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

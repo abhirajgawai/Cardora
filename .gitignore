@@ -60,5 +60,13 @@ htmlcov/
 uploads/
 uploads/*
 
-# Claude Code settings
+# Claude Code settings (keep skills/ tracked — they're project assets)
 .claude/settings.local.json
+.claude/launch.json
+
+# One-time data-fix scripts (local dev use only)
+scripts/
+
+# Generated / export files
+openapi.json
+nul

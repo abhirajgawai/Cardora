@@ -1,7 +1,6 @@
 """
 Category Pydantic Schemas (DTOs)
 
-Compare to .NET: Like having DTOs for Categories
     - CategoryResponse → CategoryDto (output)
 
 Categories in Cardora:
@@ -20,14 +19,12 @@ from typing import Optional
 
 
 # ═══════════════════════════════════════════════════════════════════
-# CATEGORY RESPONSE (Output)
 # ═══════════════════════════════════════════════════════════════════
 
 class CategoryResponse(BaseModel):
     """
     Schema for category data response (output)
 
-    Compare to .NET:
         public class CategoryDto
         {
             public Guid Id { get; set; }
@@ -64,7 +61,6 @@ class CategoryResponse(BaseModel):
     color: Optional[str] = Field(
         None,
         description="Category color (hex code)",
-        examples=["#4CAF50", "#FF9800", "#2196F3"]
     )
 
     is_custom: bool = Field(
@@ -79,15 +75,12 @@ class CategoryResponse(BaseModel):
         examples=["2024-10-22T10:30:00Z"]
     )
 
-    # Configuration
     model_config = ConfigDict(
-        from_attributes=True,  # Allows creation from ORM models
         json_schema_extra={
             "example": {
                 "id": "550e8400-e29b-41d4-a716-446655440000",
                 "name": "Groceries",
                 "icon": "🛒",
-                "color": "#4CAF50",
                 "is_custom": False,
                 "created_at": "2024-10-22T10:30:00Z"
             }
@@ -96,14 +89,12 @@ class CategoryResponse(BaseModel):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# CATEGORY CREATE (Future feature - custom categories)
 # ═══════════════════════════════════════════════════════════════════
 
 class CategoryCreate(BaseModel):
     """
     Schema for creating custom category (input)
 
-    Compare to .NET:
         public class CreateCategoryRequest
         {
             [Required]
@@ -135,12 +126,9 @@ class CategoryCreate(BaseModel):
     color: Optional[str] = Field(
         None,
         max_length=7,
-        pattern="^#[0-9A-Fa-f]{6}$",  # Validates hex color format
         description="Category color (hex code)",
-        examples=["#8B4513", "#FF1493"]
     )
 
-    # Configuration
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -153,19 +141,15 @@ class CategoryCreate(BaseModel):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# USAGE EXAMPLES
 # ═══════════════════════════════════════════════════════════════════
 """
-# Example 1: List all categories (system + user's custom)
 GET /categories
 
-# Response 200 OK:
 [
     {
         "id": "550e8400-e29b-41d4-a716-446655440000",
         "name": "Groceries",
         "icon": "🛒",
-        "color": "#4CAF50",
         "is_custom": false,
         "created_at": "2024-10-22T10:30:00Z"
     },
@@ -180,7 +164,6 @@ GET /categories
 ]
 
 
-# Example 2: Create custom category (future feature)
 POST /categories
 Content-Type: application/json
 Authorization: Bearer <token>
@@ -191,7 +174,6 @@ Authorization: Bearer <token>
     "color": "#8B4513"
 }
 
-# Response 201 Created:
 {
     "id": "660e8400-e29b-41d4-a716-446655440001",
     "name": "Coffee Shops",
@@ -202,7 +184,6 @@ Authorization: Bearer <token>
 }
 
 
-# Example 3: Category in transaction response
 {
     "id": "770e8400-e29b-41d4-a716-446655440002",
     "merchant_name": "Starbucks",
@@ -212,7 +193,6 @@ Authorization: Bearer <token>
         "id": "550e8400-e29b-41d4-a716-446655440000",
         "name": "Dining",
         "icon": "🍽️",
-        "color": "#FF9800",
         "is_custom": false
     }
 }

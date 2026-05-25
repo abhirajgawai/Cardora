@@ -9,5 +9,6 @@ Exports:
 
 from app.features.auth.router import auth_router, users_router
 from app.features.auth.models import User
+from app.features.auth.jwt import get_current_user
 
-__all__ = ["auth_router", "users_router", "User"]
+__all__ = ["auth_router", "users_router", "User", "get_current_user"]

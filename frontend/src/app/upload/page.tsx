@@ -6,7 +6,7 @@ import { getCurrentUser } from '@/features/auth';
 import { uploadStatement } from '@/features/statements';
 import { User } from '@/features/auth/types';
 import { StatementUploadResponse } from '@/features/statements/types';
-import { extractErrorMessage, isAuthError } from '@/shared/lib/utils/errorHandler';
+import { extractErrorMessage } from '@/shared/lib/utils/errorHandler';
 import Sidebar from '@/shared/components/layout/Sidebar';
 import Footer from '@/shared/components/layout/Footer';
 import UploadZone from '@/features/statements/components/UploadZone';
@@ -30,12 +30,8 @@ export default function UploadPage() {
       try {
         const userData = await getCurrentUser();
         setUser(userData);
-      } catch (error) {
-        console.error('Failed to load user:', extractErrorMessage(error));
-        if (isAuthError(error)) {
-          localStorage.removeItem('access_token');
-          router.push('/login');
-        }
+      } catch {
+        // Auth errors (401) are handled by the Axios interceptor.
       } finally {
         setLoading(false);
       }
@@ -88,7 +84,6 @@ export default function UploadPage() {
       setUploadProgress(100);
       setUploadResult(result);
     } catch (error) {
-      console.error('Upload failed:', error);
       setUploadStage('error');
       setError(extractErrorMessage(error));
     }

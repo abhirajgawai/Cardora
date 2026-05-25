@@ -1,7 +1,6 @@
 """
 Transaction Pydantic Schemas (DTOs)
 
-Compare to .NET: Like having DTOs for Transactions
     - TransactionCreate → CreateTransactionRequest DTO
     - TransactionResponse → TransactionDto (output)
     - TransactionUpdate → UpdateTransactionRequest DTO
@@ -19,19 +18,16 @@ from datetime import date, datetime
 from typing import Optional
 from decimal import Decimal
 
-# Import CategoryResponse for nested response
 from app.features.categories.schemas import CategoryResponse
 
 
 # ═══════════════════════════════════════════════════════════════════
-# TRANSACTION CREATE (Input - Manual Entry)
 # ═══════════════════════════════════════════════════════════════════
 
 class TransactionCreate(BaseModel):
     """
     Schema for creating a transaction manually (input)
 
-    Compare to .NET:
         public class CreateTransactionRequest
         {
             [Required]
@@ -70,7 +66,6 @@ class TransactionCreate(BaseModel):
 
     amount: Decimal = Field(
         ...,
-        gt=0,  # Greater than 0
         decimal_places=2,
         description="Transaction amount in dollars",
         examples=[6.50, 125.00]
@@ -95,7 +90,6 @@ class TransactionCreate(BaseModel):
         examples=["Coffee with friends"]
     )
 
-    # Configuration
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -111,14 +105,12 @@ class TransactionCreate(BaseModel):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# TRANSACTION RESPONSE (Output)
 # ═══════════════════════════════════════════════════════════════════
 
 class TransactionResponse(BaseModel):
     """
     Schema for transaction data response (output)
 
-    Compare to .NET:
         public class TransactionDto
         {
             public Guid Id { get; set; }
@@ -221,7 +213,6 @@ class TransactionResponse(BaseModel):
         examples=[0.95, 0.87]
     )
 
-    # Nested category data
     category: Optional[CategoryResponse] = Field(
         None,
         description="Transaction category (nested object)"
@@ -239,9 +230,7 @@ class TransactionResponse(BaseModel):
         examples=["2024-10-22T10:30:00Z"]
     )
 
-    # Configuration
     model_config = ConfigDict(
-        from_attributes=True,  # Allows creation from ORM models
         json_schema_extra={
             "example": {
                 "id": "770e8400-e29b-41d4-a716-446655440002",
@@ -260,7 +249,6 @@ class TransactionResponse(BaseModel):
                     "id": "990e8400-e29b-41d4-a716-446655440004",
                     "name": "Dining",
                     "icon": "🍽️",
-                    "color": "#FF9800",
                     "is_custom": False,
                     "created_at": "2024-10-22T10:30:00Z"
                 },
@@ -272,14 +260,12 @@ class TransactionResponse(BaseModel):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# TRANSACTION UPDATE (Input)
 # ═══════════════════════════════════════════════════════════════════
 
 class TransactionUpdate(BaseModel):
     """
     Schema for updating transaction (input)
 
-    Compare to .NET:
         public class UpdateTransactionRequest
         {
             public Guid? CategoryId { get; set; }
@@ -324,7 +310,6 @@ class TransactionUpdate(BaseModel):
         examples=["Updated: Coffee and pastry"]
     )
 
-    # Configuration
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -336,14 +321,12 @@ class TransactionUpdate(BaseModel):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# TRANSACTION LIST RESPONSE (for pagination)
 # ═══════════════════════════════════════════════════════════════════
 
 class TransactionListResponse(BaseModel):
     """
     Schema for paginated transaction list
 
-    Compare to .NET:
         public class PagedResult<T>
         {
             public List<T> Items { get; set; }
@@ -379,7 +362,6 @@ class TransactionListResponse(BaseModel):
         examples=[20]
     )
 
-    # Configuration
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -392,7 +374,6 @@ class TransactionListResponse(BaseModel):
                         "category": {
                             "name": "Dining",
                             "icon": "🍽️",
-                            "color": "#FF9800"
                         }
                     }
                 ],
@@ -405,14 +386,11 @@ class TransactionListResponse(BaseModel):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# USAGE EXAMPLES
 # ═══════════════════════════════════════════════════════════════════
 """
-# Example 1: List transactions with filters
 GET /transactions?month=10&year=2024&category_id=660e8400-e29b-41d4-a716-446655440001&page=1&limit=20
 Authorization: Bearer <token>
 
-# Response 200 OK:
 {
     "transactions": [
         {
@@ -432,7 +410,6 @@ Authorization: Bearer <token>
                 "id": "660e8400-e29b-41d4-a716-446655440001",
                 "name": "Dining",
                 "icon": "🍽️",
-                "color": "#FF9800",
                 "is_custom": false
             },
             "created_at": "2024-10-22T10:30:00Z",
@@ -445,7 +422,6 @@ Authorization: Bearer <token>
 }
 
 
-# Example 2: Create manual transaction
 POST /transactions
 Content-Type: application/json
 Authorization: Bearer <token>
@@ -459,7 +435,6 @@ Authorization: Bearer <token>
     "description": "Snacks"
 }
 
-# Response 201 Created:
 {
     "id": "990e8400-e29b-41d4-a716-446655440004",
     "user_id": "660e8400-e29b-41d4-a716-446655440001",
@@ -485,7 +460,6 @@ Authorization: Bearer <token>
 }
 
 
-# Example 3: Update transaction category
 PATCH /transactions/770e8400-e29b-41d4-a716-446655440002
 Content-Type: application/json
 Authorization: Bearer <token>
@@ -495,7 +469,6 @@ Authorization: Bearer <token>
     "description": "Updated: Coffee and pastry"
 }
 
-# Response 200 OK:
 {
     "id": "770e8400-e29b-41d4-a716-446655440002",
     "merchant_name": "Starbucks",

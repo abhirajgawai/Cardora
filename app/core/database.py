@@ -1,7 +1,6 @@
 """
 Database Configuration and Session Management for Cardora
 
-Compare to .NET:
 - This file sets up SQLAlchemy (Python's Entity Framework Core)
 - Engine = database connection pool
 - SessionLocal = factory for database sessions
@@ -18,29 +17,20 @@ from app.core.config import settings
 
 
 # ============================================================
-# 1. CREATE DATABASE ENGINE
 # ============================================================
 """
-Compare to .NET:
 In EF Core: services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(connectionString));
 
 In SQLAlchemy: create_engine() creates a connection pool
 """
 
-# Convert DATABASE_URL to use psycopg3 driver
-# psycopg (version 3) requires 'postgresql+psycopg://' instead of 'postgresql://'
 database_url = settings.DATABASE_URL
 if database_url.startswith("postgresql://"):
     database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
 
 engine = create_engine(
     database_url,
-    # Connection pool settings (like EF Core connection pooling)
-    pool_pre_ping=True,  # Verify connections before using
-    pool_size=10,        # Max number of connections in pool
-    max_overflow=20,     # Additional connections if pool is full
-    echo=settings.DEBUG  # Log SQL queries in DEBUG mode (like EF logging)
 )
 
 """
@@ -75,10 +65,8 @@ EXPLANATION:
 
 
 # ============================================================
-# 2. CREATE SESSION FACTORY
 # ============================================================
 """
-Compare to .NET:
 In EF Core, DbContext IS the session.
 In SQLAlchemy, Session is separate from the engine.
 
@@ -88,9 +76,10 @@ Think of it this way:
 """
 
 SessionLocal = sessionmaker(
-    autocommit=False,  # Don't auto-commit (explicit transaction control)
-    autoflush=False,   # Don't auto-flush (explicit flush control)
-    bind=engine        # Bind to our engine
+    autocommit=False,
+    autoflush=False,
+    bind=engine,
+    expire_on_commit=False,
 )
 
 """
@@ -119,10 +108,8 @@ EXPLANATION:
 
 
 # ============================================================
-# 3. CREATE BASE CLASS FOR MODELS
 # ============================================================
 """
-Compare to .NET:
 In EF Core: public class User { ... } (no base class needed)
             DbContext has DbSet<User> property
 
@@ -155,10 +142,8 @@ EXPLANATION:
 
 
 # ============================================================
-# 4. DEPENDENCY INJECTION FUNCTION
 # ============================================================
 """
-Compare to .NET:
 In .NET controllers:
     public MyController(ApplicationDbContext context) { }
 
@@ -168,37 +153,12 @@ In FastAPI:
 """
 
 def get_db() -> Generator[Session, None, None]:
-    """
-    Dependency function to get database session for each request
-
-    Usage in FastAPI endpoints:
-    @router.get("/users")
-    def get_users(db: Session = Depends(get_db)):
-        users = db.query(User).all()
-        return users
-
-    Compare to .NET:
-    [HttpGet("users")]
-    public IActionResult GetUsers(ApplicationDbContext db)
-    {
-        var users = db.Users.ToList();
-        return Ok(users);
-    }
-
-    How it works:
-    1. FastAPI calls get_db() before executing endpoint
-    2. Creates a new session for this request
-    3. Passes session to endpoint function
-    4. After endpoint finishes, closes session (in finally block)
-    5. This ensures proper session lifecycle (like DbContext scope)
-    """
-    db = SessionLocal()  # Create new session (like new DbContext())
+    """Yield a database session for the duration of a request, then close it."""
+    db = SessionLocal()
     try:
-        yield db  # Provide session to endpoint
-        # If we reach here without exception, commit any changes
-        # (though we typically call db.commit() explicitly in code)
+        yield db
     finally:
-        db.close()  # Always close session (like DbContext.Dispose())
+        db.close()
 
 """
 EXPLANATION:
@@ -216,7 +176,6 @@ EXPLANATION:
 3. try/finally pattern
    - Ensures db.close() always runs
    - Even if endpoint throws exception
-   - Like using statement in C#: using (var db = new DbContext()) { }
 
 4. Why not just return db?
    - FastAPI's Depends() needs a generator
@@ -230,14 +189,12 @@ EXPLANATION:
 
 
 # ============================================================
-# 5. DATABASE INITIALIZATION HELPER (OPTIONAL)
 # ============================================================
 
 def init_db() -> None:
     """
     Create all database tables
 
-    Compare to .NET:
     This is like: context.Database.EnsureCreated()
     Or running: dotnet ef database update
 
@@ -249,18 +206,12 @@ def init_db() -> None:
     NOTE: We'll use this in testing. For production, we'll use
     Alembic migrations (like EF Core migrations).
     """
-    # Import all models here to ensure they're registered with Base
-    # This is like EF Core scanning for DbSet<T> properties
-    from app.models import user  # noqa: F401
-    # ^ Import models so Base knows about them
 
-    # Create all tables
     Base.metadata.create_all(bind=engine)
     print("✓ Database tables created successfully!")
 
 
 # ============================================================
-# SUMMARY OF KEY CONCEPTS
 # ============================================================
 """
 ┌─────────────────────────────────────────────────────────────┐

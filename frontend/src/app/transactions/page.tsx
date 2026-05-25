@@ -9,9 +9,8 @@ import { getStatements } from '@/features/statements';
 import { User } from '@/features/auth/types';
 import { Transaction } from '@/features/transactions/types';
 import { CreditCard } from '@/features/cards/types';
-import { Statement } from '@/features/statements/types';
-import { extractErrorMessage, isAuthError } from '@/shared/lib/utils/errorHandler';
 import { formatCardDisplayName } from '@/shared/lib/utils/cardFormatter';
+import { formatCurrency } from '@/shared/lib/utils/formatCurrency';
 import Sidebar from '@/shared/components/layout/Sidebar';
 import Footer from '@/shared/components/layout/Footer';
 import { SearchableSelect } from '@/shared/components/ui/SearchableSelect';
@@ -67,14 +66,8 @@ function TransactionsPageContent() {
         // Fetch cards
         try {
           const cardsData = await getCards();
-          if (!Array.isArray(cardsData)) {
-            console.warn('Cards data is not an array:', cardsData);
-            setCards([]);
-          } else {
-            setCards(cardsData);
-          }
-        } catch (cardError) {
-          console.warn('Failed to fetch cards:', extractErrorMessage(cardError));
+          setCards(Array.isArray(cardsData) ? cardsData : []);
+        } catch {
           setCards([]);
         }
 
@@ -89,37 +82,23 @@ function TransactionsPageContent() {
               month: mostRecentStatement.statement_month,
               year: mostRecentStatement.statement_year
             });
-            console.log(`[Transactions] Defaulting to most recent statement: ${mostRecentStatement.statement_month}/${mostRecentStatement.statement_year}`);
           }
-        } catch (statementError) {
-          console.warn('Failed to fetch statements:', extractErrorMessage(statementError));
+        } catch {
+          // statement fetch failure is non-fatal — default filter stays null
         }
 
         // Fetch all transactions
         try {
           const transactionsData = await getTransactions({ limit: 10000 });
-          if (!Array.isArray(transactionsData)) {
-            console.warn('Transactions data is not an array:', transactionsData);
-            setTransactions([]);
-          } else {
-            setTransactions(transactionsData);
-          }
-        } catch (transactionError) {
-          console.warn('Failed to fetch transactions:', extractErrorMessage(transactionError));
+          setTransactions(Array.isArray(transactionsData) ? transactionsData : []);
+        } catch {
           setTransactions([]);
         }
 
         // Mark initial load as complete
         setIsInitialLoad(false);
-      } catch (error) {
-        console.error('Transactions page error:', extractErrorMessage(error));
-        if (isAuthError(error)) {
-          console.log('Authentication failed (401), clearing token and redirecting to login');
-          localStorage.removeItem('access_token');
-          router.push('/login');
-        } else {
-          console.error('Failed to load transactions data:', extractErrorMessage(error));
-        }
+      } catch {
+        // Auth errors (401) are handled by the Axios interceptor.
       } finally {
         setLoading(false);
       }
@@ -816,7 +795,7 @@ function TransactionsPageContent() {
                             {getCardName(transaction.card_id)}
                           </TableCell>
                           <TableCell className="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-foreground">
-                            ${Number(transaction.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {formatCurrency(transaction.amount)}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -968,7 +947,7 @@ function TransactionsPageContent() {
                   </div>
                   <div className="text-right">
                     <p className="text-2xl font-bold text-foreground">
-                      ${filteredTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {formatCurrency(filteredTotal)}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
                       {filteredAndSortedTransactions.length} {filteredAndSortedTransactions.length === 1 ? 'transaction' : 'transactions'}

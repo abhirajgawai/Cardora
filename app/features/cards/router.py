@@ -10,7 +10,6 @@ Endpoints:
 - PATCH /credit-cards/{card_id} - Update card (rename, deactivate)
 - DELETE /credit-cards/{card_id} - Delete card
 
-Compare to .NET: Like CreditCardsController
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -25,7 +24,6 @@ from app.features.cards.schemas import CreditCardResponse, CreditCardUpdate
 from app.features.auth.jwt import get_current_user
 
 # ═══════════════════════════════════════════════════════════════════
-# ROUTER SETUP
 # ═══════════════════════════════════════════════════════════════════
 
 router = APIRouter(
@@ -35,7 +33,6 @@ router = APIRouter(
 
 
 # ═══════════════════════════════════════════════════════════════════
-# GET /credit-cards - List All User's Cards
 # ═══════════════════════════════════════════════════════════════════
 
 @router.get(
@@ -67,7 +64,6 @@ async def list_credit_cards(
 
 
 # ═══════════════════════════════════════════════════════════════════
-# GET /credit-cards/{card_id} - Get Specific Card
 # ═══════════════════════════════════════════════════════════════════
 
 @router.get(
@@ -99,7 +95,6 @@ async def get_credit_card(
 
 
 # ═══════════════════════════════════════════════════════════════════
-# PATCH /credit-cards/{card_id} - Update Card
 # ═══════════════════════════════════════════════════════════════════
 
 @router.patch(
@@ -135,7 +130,6 @@ async def update_credit_card(
             detail="Credit card not found"
         )
 
-    # Update only provided fields
     if card_update.card_name is not None:
         card.card_name = card_update.card_name
 
@@ -155,7 +149,6 @@ async def update_credit_card(
 
 
 # ═══════════════════════════════════════════════════════════════════
-# DELETE /credit-cards/{card_id} - Delete Card
 # ═══════════════════════════════════════════════════════════════════
 
 @router.delete(
@@ -190,7 +183,6 @@ async def delete_credit_card(
             detail="Credit card not found"
         )
 
-    # Delete card (cascade will delete statements and transactions)
     db.delete(card)
     db.commit()
 
@@ -198,10 +190,8 @@ async def delete_credit_card(
 
 
 # ═══════════════════════════════════════════════════════════════════
-# USAGE EXAMPLES
 # ═══════════════════════════════════════════════════════════════════
 """
-# Example 1: Add new card
 POST /credit-cards
 Authorization: Bearer <token>
 Content-Type: application/json
@@ -214,11 +204,9 @@ Content-Type: application/json
     "credit_limit": 10000.00
 }
 
-# Example 2: List all cards
 GET /credit-cards
 Authorization: Bearer <token>
 
-# Example 3: Update card
 PATCH /credit-cards/550e8400-e29b-41d4-a716-446655440000
 Authorization: Bearer <token>
 Content-Type: application/json
@@ -228,7 +216,6 @@ Content-Type: application/json
     "card_name": "DBS Altitude Visa Signature"
 }
 
-# Example 4: Deactivate card (preserve data)
 PATCH /credit-cards/550e8400-e29b-41d4-a716-446655440000
 Authorization: Bearer <token>
 Content-Type: application/json
@@ -237,7 +224,6 @@ Content-Type: application/json
     "is_active": false
 }
 
-# Example 5: Delete card (WARNING: Deletes all data)
 DELETE /credit-cards/550e8400-e29b-41d4-a716-446655440000
 Authorization: Bearer <token>
 """

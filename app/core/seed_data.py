@@ -3,7 +3,6 @@ Seed Default Categories for Cardora
 
 Inserts 8 system-wide default categories that all users can use.
 
-Compare to .NET:
     // In EF Core, you'd use:
     public class SeedData
     {
@@ -13,7 +12,6 @@ Compare to .NET:
 
             var categories = new[]
             {
-                new Category { Name = "Groceries", Icon = "🛒", Color = "#4CAF50" },
                 // ...
             };
 
@@ -32,148 +30,117 @@ from app.core.database import SessionLocal
 from app.features.categories.models import Category
 
 
-# Default system categories (user_id = NULL for system-wide)
 DEFAULT_CATEGORIES = [
-    # ===== EXISTING CATEGORIES (8) =====
     {
         "name": "Groceries",
         "icon": "🛒",
-        "color": "#4CAF50",  # Green
         "is_custom": False
     },
     {
         "name": "Dining",
         "icon": "🍽️",
-        "color": "#FF9800",  # Orange
         "is_custom": False
     },
     {
         "name": "Transport",
         "icon": "🚗",
-        "color": "#2196F3",  # Blue
         "is_custom": False
     },
     {
         "name": "Shopping",
         "icon": "🛍️",
-        "color": "#E91E63",  # Pink
         "is_custom": False
     },
     {
         "name": "Entertainment",
         "icon": "🎬",
-        "color": "#9C27B0",  # Purple
         "is_custom": False
     },
     {
         "name": "Bills & Utilities",
         "icon": "💡",
-        "color": "#607D8B",  # Blue Grey
         "is_custom": False
     },
     {
         "name": "Healthcare",
         "icon": "🏥",
-        "color": "#F44336",  # Red
         "is_custom": False
     },
     {
         "name": "Others",
         "icon": "📦",
-        "color": "#9E9E9E",  # Grey
         "is_custom": False
     },
 
-    # ===== NEW CATEGORIES (13) =====
-    # Daily Essentials
     {
         "name": "Gas & Fuel",
         "icon": "⛽",
-        "color": "#FF5722",  # Deep Orange
         "is_custom": False
     },
 
-    # Bills & Services
     {
         "name": "Insurance",
         "icon": "🛡️",
-        "color": "#3F51B5",  # Indigo
         "is_custom": False
     },
     {
         "name": "Subscriptions & Services",
         "icon": "📱",
-        "color": "#00BCD4",  # Cyan
         "is_custom": False
     },
 
-    # Shopping
     {
         "name": "Online Shopping",
         "icon": "📦",
-        "color": "#FF6F00",  # Amber Dark
         "is_custom": False
     },
     {
         "name": "Clothing & Accessories",
         "icon": "👕",
-        "color": "#E91E63",  # Pink (similar to Shopping)
         "is_custom": False
     },
     {
         "name": "Electronics",
         "icon": "💻",
-        "color": "#607D8B",  # Blue Grey
         "is_custom": False
     },
 
-    # Health & Wellness
     {
         "name": "Fitness & Gym",
         "icon": "💪",
-        "color": "#FF9800",  # Orange
         "is_custom": False
     },
     {
         "name": "Beauty & Personal Care",
         "icon": "💇",
-        "color": "#E91E63",  # Pink
         "is_custom": False
     },
 
-    # Lifestyle
     {
         "name": "Pets",
         "icon": "🐾",
-        "color": "#8BC34A",  # Light Green
         "is_custom": False
     },
 
-    # Travel
     {
         "name": "Flights & Travel Bookings",
         "icon": "✈️",
-        "color": "#2196F3",  # Blue
         "is_custom": False
     },
     {
         "name": "Hotels & Accommodation",
         "icon": "🏨",
-        "color": "#00BCD4",  # Cyan
         "is_custom": False
     },
 
-    # Other
     {
         "name": "Home & Garden",
         "icon": "🏡",
-        "color": "#8BC34A",  # Light Green
         "is_custom": False
     },
     {
         "name": "Education & Learning",
         "icon": "📚",
-        "color": "#3F51B5",  # Indigo
         "is_custom": False
     }
 ]
@@ -190,9 +157,7 @@ def seed_categories(db: Session):
     print("SEEDING DEFAULT CATEGORIES")
     print("=" * 70)
 
-    # Check if categories already exist
     existing_count = db.query(Category).filter(
-        Category.user_id == None,  # System categories
         Category.is_custom == False
     ).count()
 
@@ -204,10 +169,8 @@ def seed_categories(db: Session):
 
     print(f"\nProcessing {len(DEFAULT_CATEGORIES)} categories...")
 
-    # Insert each category
     inserted_count = 0
     for category_data in DEFAULT_CATEGORIES:
-        # Check if category with this name already exists
         existing = db.query(Category).filter(
             Category.name == category_data["name"],
             Category.user_id == None
@@ -217,33 +180,29 @@ def seed_categories(db: Session):
             print(f"  [SKIP] {category_data['name']} already exists")
             continue
 
-        # Create new category
         category = Category(
-            user_id=None,  # NULL = system category
             name=category_data["name"],
             icon=category_data["icon"],
-            color=category_data["color"],
-            is_custom=category_data["is_custom"]
+            color=category_data.get("color"),
+            is_custom=category_data["is_custom"],
         )
 
         db.add(category)
         inserted_count += 1
-        print(f"  [OK] Added: {category_data['name']} ({category_data['color']})")
+        print(f"  [OK] Added: {category_data['name']}")
 
-    # Commit all insertions
     db.commit()
 
     print(f"\nSuccessfully inserted {inserted_count} categories!")
     print("=" * 70)
 
-    # Verify categories
     print("\nVerification - All system categories:")
     categories = db.query(Category).filter(
         Category.user_id == None
     ).order_by(Category.name).all()
 
     for cat in categories:
-        print(f"  {cat.name:<25} {cat.color}")
+        print(f"  {cat.name}")
 
     print("\n" + "=" * 70)
     print("SEEDING COMPLETE!")

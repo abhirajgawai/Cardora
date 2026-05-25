@@ -25,8 +25,8 @@ export default function Sidebar() {
       try {
         const userData = await getCurrentUser();
         setUser(userData);
-      } catch (error) {
-        console.error("Failed to fetch user:", error);
+      } catch {
+        // 401 handled globally by the Axios interceptor
       }
     };
 

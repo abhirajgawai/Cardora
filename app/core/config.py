@@ -1,7 +1,6 @@
 """
 Configuration Management for Cardora
 
-Compare to .NET:
 - This is like appsettings.json + IConfiguration interface
 - Pydantic Settings automatically loads from .env file
 - Type validation happens automatically
@@ -13,86 +12,43 @@ from typing import Optional
 
 
 class Settings(BaseSettings):
-    """
-    Application Settings
-
-    Compare to .NET:
-    This is like having a strongly-typed configuration class that
-    automatically binds to IConfiguration in ASP.NET Core.
-
-    The difference: Instead of injecting IConfiguration and using
-    Configuration.GetSection(), Pydantic automatically reads from
-    environment variables or .env file.
-    """
-
-    # ============================================================
-    # Application Settings
-    # ============================================================
+    # App
     APP_NAME: str = "Cardora"
     APP_VERSION: str = "1.0.0"
-    DEBUG: bool = True
+    DEBUG: bool = False
 
-    # ============================================================
-    # API Settings
-    # ============================================================
+    # API server
     API_HOST: str = "127.0.0.1"
     API_PORT: int = 8000
 
-    # ============================================================
-    # Database Settings
-    # ============================================================
+    # Database — required, no default (fail fast if missing)
     DATABASE_URL: str
-    # ^ This is REQUIRED (no default value)
-    # If not found in .env, application will fail to start
-    # This prevents running without a database connection
 
-    # ============================================================
-    # Security Settings (for JWT authentication)
-    # ============================================================
-    SECRET_KEY: str  # Required - used to sign JWT tokens
-    ALGORITHM: str = "HS256"  # JWT signing algorithm
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30  # Token lifetime
+    # JWT auth — SECRET_KEY must be set in .env
+    SECRET_KEY: str
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = 60
 
-    # ============================================================
-    # Password Reset Settings
-    # ============================================================
-    PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = 60  # 1 hour
-    FRONTEND_URL: str = "http://localhost:3000"  # Frontend app URL for reset links
+    # Frontend URL — used in password-reset emails
+    FRONTEND_URL: str = "http://localhost:3000"
 
-    # ============================================================
-    # SendGrid Email Settings (for password reset emails)
-    # ============================================================
+    # Email (SendGrid)
     SENDGRID_API_KEY: Optional[str] = None
-    # ^ Get your free API key from https://sendgrid.com/
-    # Free tier: 100 emails/day
-
     FROM_EMAIL: str = "noreply@cardora.com"
-    # ^ Must be verified in SendGrid (or use Single Sender Verification)
-
     FROM_NAME: str = "Cardora Support"
-    # ^ Display name shown in email "From" field
 
-    # ============================================================
-    # Google Gemini API (for PDF extraction - Feature 3)
-    # ============================================================
+    # AI
     GEMINI_API_KEY: Optional[str] = None
-    # ^ Optional for now - we'll need this in Feature 3
 
-    # ============================================================
-    # Pydantic Configuration
-    # ============================================================
     model_config = SettingsConfigDict(
-        # Tell Pydantic to read from .env file
         env_file=".env",
         env_file_encoding="utf-8",
-        # Allow extra fields in .env that we don't define here
         extra="ignore",
-        # Make field names case-sensitive
         case_sensitive=True
     )
 
     # ============================================================
-    # Helper Properties (computed values)
     # ============================================================
 
     @property
@@ -100,7 +56,6 @@ class Settings(BaseSettings):
         """
         Synchronous database URL (for SQLAlchemy)
 
-        Compare to .NET:
         This is like having a computed property that transforms
         the connection string for different use cases.
 
@@ -128,21 +83,13 @@ class Settings(BaseSettings):
 
 
 # ============================================================
-# Create a global settings instance
 # ============================================================
-# Compare to .NET:
-# In .NET, you'd inject IConfiguration or IOptions<Settings>
-# In FastAPI, we create a singleton instance here and import it
 
 settings = Settings()
 
-# Usage in other files:
-# from app.core.config import settings
-# print(settings.DATABASE_URL)
 
 
 # ============================================================
-# EXPLANATION OF KEY CONCEPTS
 # ============================================================
 """
 1. BaseSettings (Pydantic)
@@ -162,7 +109,6 @@ settings = Settings()
    - Required if no default value provided
 
 4. @property decorator
-   - Creates computed properties (like C# properties with get)
    - No stored value, computed on access
    - Useful for transforming configuration values
 

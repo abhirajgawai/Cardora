@@ -1,50 +1,42 @@
 import apiClient from '@/shared/lib/api/client';
 import {
-  Insight,
-  GetInsightsResponse,
-  GenerateInsightsResponse,
-  DismissInsightResponse,
-  GetInsightTransactionsResponse
+  GetPaymentAlertsResponse,
+  GetCardPaymentAlertsResponse,
+  DismissPaymentAlertResponse,
+  PayoffCalculation
 } from '../types';
 
-/**
- * Get all insights for the current user
- * @param includeDismissed - Include dismissed insights (default: false)
- * @returns List of insights with count
- */
-export const getInsights = async (includeDismissed: boolean = false): Promise<GetInsightsResponse> => {
-  const response = await apiClient.get<GetInsightsResponse>('/insights', {
+export const getPaymentAlerts = async (includeDismissed: boolean = false): Promise<GetPaymentAlertsResponse> => {
+  const response = await apiClient.get<GetPaymentAlertsResponse>('/insights/payment-alerts', {
     params: { include_dismissed: includeDismissed }
   });
   return response.data;
 };
 
-/**
- * Generate new insights for the current user
- * Analyzes last 3 months of transactions and generates rule-based insights
- * @returns Newly generated insights
- */
-export const generateInsights = async (): Promise<GenerateInsightsResponse> => {
-  const response = await apiClient.post<GenerateInsightsResponse>('/insights/generate');
+export const getCardPaymentAlerts = async (
+  cardId: string,
+  includeDismissed: boolean = false
+): Promise<GetCardPaymentAlertsResponse> => {
+  const response = await apiClient.get<GetCardPaymentAlertsResponse>(`/insights/payment-alerts/card/${cardId}`, {
+    params: { include_dismissed: includeDismissed }
+  });
   return response.data;
 };
 
-/**
- * Dismiss an insight
- * @param insightId - Insight ID
- * @returns Success message
- */
-export const dismissInsight = async (insightId: string): Promise<DismissInsightResponse> => {
-  const response = await apiClient.patch<DismissInsightResponse>(`/insights/${insightId}/dismiss`);
+export const dismissPaymentAlert = async (alertId: string): Promise<DismissPaymentAlertResponse> => {
+  const response = await apiClient.put<DismissPaymentAlertResponse>(`/insights/payment-alerts/${alertId}/dismiss`);
   return response.data;
 };
 
-/**
- * Get transactions linked to a specific insight
- * @param insightId - Insight ID
- * @returns Insight details with all linked transactions
- */
-export const getInsightTransactions = async (insightId: string): Promise<GetInsightTransactionsResponse> => {
-  const response = await apiClient.get<GetInsightTransactionsResponse>(`/insights/${insightId}/transactions`);
+export const calculatePayoff = async (
+  balance: number,
+  apr: number,
+  monthlyPayment: number
+): Promise<PayoffCalculation> => {
+  const response = await apiClient.post<PayoffCalculation>('/insights/calculate-payoff', {
+    balance,
+    apr,
+    monthly_payment: monthlyPayment
+  });
   return response.data;
 };

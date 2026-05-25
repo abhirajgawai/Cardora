@@ -1,7 +1,6 @@
 """
 Credit Card Pydantic Schemas (DTOs)
 
-Compare to .NET: Like having DTOs for Credit Cards
     - CreditCardResponse → CardDto (output)
     - CreditCardUpdate → UpdateCardRequest DTO
 
@@ -19,14 +18,12 @@ from decimal import Decimal
 
 
 # ═══════════════════════════════════════════════════════════════════
-# CREDIT CARD RESPONSE (Output)
 # ═══════════════════════════════════════════════════════════════════
 
 class CreditCardResponse(BaseModel):
     """
     Schema for credit card data response (output)
 
-    Compare to .NET:
         public class CardDto
         {
             public Guid Id { get; set; }
@@ -112,9 +109,7 @@ class CreditCardResponse(BaseModel):
         examples=["2024-10-22T10:30:00Z"]
     )
 
-    # Configuration
     model_config = ConfigDict(
-        from_attributes=True,  # Allows creation from ORM models
         json_schema_extra={
             "example": {
                 "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -134,14 +129,12 @@ class CreditCardResponse(BaseModel):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# CREDIT CARD UPDATE (Input)
 # ═══════════════════════════════════════════════════════════════════
 
 class CreditCardUpdate(BaseModel):
     """
     Schema for updating credit card (input)
 
-    Compare to .NET:
         public class UpdateCardRequest
         {
             public string? CardName { get; set; }
@@ -184,7 +177,6 @@ class CreditCardUpdate(BaseModel):
         examples=[False]
     )
 
-    # Configuration
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -197,17 +189,14 @@ class CreditCardUpdate(BaseModel):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# USAGE EXAMPLES
 # ═══════════════════════════════════════════════════════════════════
 """
 NOTE: Credit cards are AUTO-CREATED when uploading PDF statements.
 Users don't manually add cards anymore.
 
-# Example 1: List all user's credit cards
 GET /credit-cards
 Authorization: Bearer <token>
 
-# Response 200 OK:
 [
     {
         "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -238,7 +227,6 @@ Authorization: Bearer <token>
 ]
 
 
-# Example 2: Update credit card
 PATCH /credit-cards/550e8400-e29b-41d4-a716-446655440000
 Content-Type: application/json
 Authorization: Bearer <token>
@@ -248,7 +236,6 @@ Authorization: Bearer <token>
     "card_name": "DBS Altitude Visa Signature"
 }
 
-# Response 200 OK:
 {
     "id": "550e8400-e29b-41d4-a716-446655440000",
     "user_id": "660e8400-e29b-41d4-a716-446655440001",

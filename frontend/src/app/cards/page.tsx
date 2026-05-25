@@ -6,8 +6,9 @@ import { getCards, updateCard, deleteCard } from '@/features/cards';
 import { getTransactions } from '@/features/transactions';
 import { CreditCard } from '@/features/cards/types';
 import { Transaction } from '@/features/transactions/types';
-import { extractErrorMessage, isAuthError } from '@/shared/lib/utils/errorHandler';
+import { extractErrorMessage } from '@/shared/lib/utils/errorHandler';
 import { formatCardType, formatBankName, formatCardDisplayName } from '@/shared/lib/utils/cardFormatter';
+import { formatCurrency } from '@/shared/lib/utils/formatCurrency';
 import Sidebar from '@/shared/components/layout/Sidebar';
 import Footer from '@/shared/components/layout/Footer';
 import { SearchableSelect } from '@/shared/components/ui/SearchableSelect';
@@ -95,8 +96,7 @@ export default function CardsPage() {
               hasMore = false;
             }
           }
-        } catch (error) {
-          console.warn(`Failed to fetch transactions page ${page}:`, extractErrorMessage(error));
+        } catch {
           hasMore = false;
         }
       }
@@ -156,12 +156,8 @@ export default function CardsPage() {
       });
 
       setCards(cardsWithStats);
-    } catch (error) {
-      console.error('Error fetching cards:', extractErrorMessage(error));
-      if (isAuthError(error)) {
-        localStorage.removeItem('access_token');
-        router.push('/login');
-      }
+    } catch {
+      // Auth errors (401) are handled by the Axios interceptor.
     } finally {
       setLoading(false);
     }
@@ -224,7 +220,6 @@ export default function CardsPage() {
       setEditingCard(null);
       fetchData();
     } catch (error) {
-      console.error('Error updating card:', extractErrorMessage(error));
       alert('Failed to update card: ' + extractErrorMessage(error));
     }
   };
@@ -237,7 +232,6 @@ export default function CardsPage() {
       setDeletingCard(null);
       fetchData();
     } catch (error) {
-      console.error('Error deleting card:', extractErrorMessage(error));
       alert('Failed to delete card: ' + extractErrorMessage(error));
     }
   };
@@ -247,7 +241,6 @@ export default function CardsPage() {
       await updateCard(card.id, { is_active: !card.is_active });
       fetchData();
     } catch (error) {
-      console.error('Error toggling card status:', extractErrorMessage(error));
       alert('Failed to toggle card status: ' + extractErrorMessage(error));
     }
   };
@@ -316,7 +309,7 @@ export default function CardsPage() {
               </div>
               <h3 className="text-sm font-semibold text-muted-foreground mb-1">Total Credit Limit</h3>
               <p className="text-3xl font-bold text-foreground">
-                ${totalCreditLimit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {formatCurrency(totalCreditLimit)}
               </p>
               <p className="text-xs text-muted-foreground mt-2">
                 Across all active cards
@@ -334,7 +327,7 @@ export default function CardsPage() {
               <h3 className="text-sm font-semibold text-muted-foreground mb-1">Total Utilization</h3>
               <p className="text-3xl font-bold text-foreground">{utilizationPercent.toFixed(1)}%</p>
               <p className="text-xs text-muted-foreground mt-2">
-                ${totalUtilization.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} used
+                {formatCurrency(totalUtilization)} used
               </p>
             </div>
 
@@ -351,7 +344,7 @@ export default function CardsPage() {
                 {highestSpendingCard ? formatCardDisplayName(highestSpendingCard.card_name, highestSpendingCard.bank_name, highestSpendingCard.card_type, highestSpendingCard.last_four_digits) : 'N/A'}
               </p>
               <p className="text-xs text-muted-foreground mt-2">
-                ${highestSpendingCard?.thisMonthSpent.toFixed(2) || '0.00'} this month
+                {formatCurrency(highestSpendingCard?.thisMonthSpent ?? 0)} this month
               </p>
             </div>
           </div>
@@ -480,7 +473,7 @@ export default function CardsPage() {
                         <div>
                           <p className="text-xs text-muted-foreground mb-1">Total Spent</p>
                           <p className="text-lg font-bold text-foreground">
-                            ${card.totalSpent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {formatCurrency(card.totalSpent)}
                           </p>
                         </div>
                         <div>
@@ -490,7 +483,7 @@ export default function CardsPage() {
                         <div>
                           <p className="text-xs text-muted-foreground mb-1">This Month</p>
                           <p className="text-lg font-bold text-foreground">
-                            ${card.thisMonthSpent.toFixed(2)}
+                            {formatCurrency(card.thisMonthSpent)}
                           </p>
                           {monthChange !== 0 && (
                             <p className={`text-xs ${monthChange > 0 ? 'text-red-600' : 'text-green-600'}`}>
@@ -501,7 +494,7 @@ export default function CardsPage() {
                         <div>
                           <p className="text-xs text-muted-foreground mb-1">Avg Transaction</p>
                           <p className="text-lg font-bold text-foreground">
-                            ${card.avgTransactionAmount.toFixed(2)}
+                            {formatCurrency(card.avgTransactionAmount)}
                           </p>
                         </div>
                       </div>
@@ -524,7 +517,7 @@ export default function CardsPage() {
                             ></div>
                           </div>
                           <p className="text-xs text-muted-foreground mt-1">
-                            ${card.thisMonthSpent.toFixed(2)} of ${Number(card.credit_limit).toFixed(2)} limit
+                            {formatCurrency(card.thisMonthSpent)} of {formatCurrency(Number(card.credit_limit))} limit
                           </p>
                         </div>
                       )}
@@ -756,7 +749,7 @@ export default function CardsPage() {
                           </div>
                         </div>
                         <p className="text-lg font-bold text-foreground ml-4">
-                          ${Number(transaction.amount).toFixed(2)}
+                          {formatCurrency(transaction.amount)}
                         </p>
                       </div>
                     ))}

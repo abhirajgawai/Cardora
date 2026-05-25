@@ -1,7 +1,6 @@
 """
 Email Service - SendGrid Integration
 
-Compare to .NET:
 - Like using IEmailSender interface in ASP.NET Core Identity
 - Or using MailKit / SendGrid.NET library in .NET
 
@@ -13,7 +12,6 @@ from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail, Email, To, Content
 from app.core.config import settings
 
-# Setup logging
 logger = logging.getLogger(__name__)
 
 
@@ -21,7 +19,6 @@ async def send_password_reset_email(email: str, reset_token: str, user_name: str
     """
     Send password reset email via SendGrid
 
-    Compare to .NET:
         await _emailSender.SendEmailAsync(
             user.Email,
             "Reset Password",
@@ -40,10 +37,8 @@ async def send_password_reset_email(email: str, reset_token: str, user_name: str
         No exceptions - errors are logged and False is returned
     """
 
-    # Build reset link
     reset_link = f"{settings.FRONTEND_URL}/reset-password?token={reset_token}"
 
-    # HTML email body
     html_content = f"""
     <!DOCTYPE html>
     <html>
@@ -52,9 +47,6 @@ async def send_password_reset_email(email: str, reset_token: str, user_name: str
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Password Reset - Cardora</title>
     </head>
-    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background-color: #f8f9fa; border-radius: 10px; padding: 30px; margin-bottom: 20px;">
-            <h1 style="color: #007bff; margin-top: 0;">Cardora - Password Reset Request</h1>
 
             <p>Hello <strong>{user_name}</strong>,</p>
 
@@ -64,7 +56,6 @@ async def send_password_reset_email(email: str, reset_token: str, user_name: str
 
             <div style="text-align: center; margin: 30px 0;">
                 <a href="{reset_link}"
-                   style="background-color: #007bff; color: white; padding: 12px 30px;
                           text-decoration: none; border-radius: 5px; display: inline-block;
                           font-weight: bold;">
                     Reset Password
@@ -72,15 +63,11 @@ async def send_password_reset_email(email: str, reset_token: str, user_name: str
             </div>
 
             <p>Or copy and paste this link into your browser:</p>
-            <p style="background-color: #e9ecef; padding: 10px; border-radius: 5px; word-break: break-all;">
                 {reset_link}
             </p>
 
-            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6;">
-                <p style="color: #6c757d; font-size: 14px; margin-bottom: 10px;">
                     <strong>Important Security Information:</strong>
                 </p>
-                <ul style="color: #6c757d; font-size: 14px;">
                     <li>This link will expire in <strong>1 hour</strong></li>
                     <li>If you didn't request this reset, please ignore this email</li>
                     <li>Your password will not change until you create a new one</li>
@@ -89,7 +76,6 @@ async def send_password_reset_email(email: str, reset_token: str, user_name: str
             </div>
         </div>
 
-        <div style="text-align: center; color: #6c757d; font-size: 12px;">
             <p>This email was sent by Cardora - Credit Card Statement Analyzer</p>
             <p>If you have any questions, please contact support.</p>
         </div>
@@ -97,7 +83,6 @@ async def send_password_reset_email(email: str, reset_token: str, user_name: str
     </html>
     """
 
-    # Plain text fallback
     text_content = f"""
     Password Reset Request - Cardora
 
@@ -118,7 +103,6 @@ async def send_password_reset_email(email: str, reset_token: str, user_name: str
     """
 
     try:
-        # Check if SendGrid API key is configured
         if not settings.SENDGRID_API_KEY or settings.SENDGRID_API_KEY == "your_sendgrid_api_key_here":
             logger.warning("SendGrid API key not configured. Email not sent.")
             logger.info(f"\n{'='*70}")
@@ -128,10 +112,8 @@ async def send_password_reset_email(email: str, reset_token: str, user_name: str
             logger.info(f"Subject: Reset Your Cardora Password")
             logger.info(f"Reset Link: {reset_link}")
             logger.info(f"{'='*70}\n")
-            # Return True for development - email is "sent" to console
             return True
 
-        # Create SendGrid message
         message = Mail(
             from_email=Email(settings.FROM_EMAIL, settings.FROM_NAME),
             to_emails=To(email),
@@ -140,11 +122,9 @@ async def send_password_reset_email(email: str, reset_token: str, user_name: str
             plain_text_content=Content("text/plain", text_content)
         )
 
-        # Send email via SendGrid
         sg = SendGridAPIClient(settings.SENDGRID_API_KEY)
         response = sg.send(message)
 
-        # Check response status
         if response.status_code in [200, 201, 202]:
             logger.info(f"Password reset email sent successfully to {email}")
             return True
@@ -161,7 +141,6 @@ async def send_welcome_email(email: str, user_name: str) -> bool:
     """
     Send welcome email to new users
 
-    Compare to .NET:
         await _emailSender.SendEmailAsync(
             user.Email,
             "Welcome to Cardora!",
@@ -183,9 +162,6 @@ async def send_welcome_email(email: str, user_name: str) -> bool:
         <meta charset="UTF-8">
         <title>Welcome to Cardora!</title>
     </head>
-    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background-color: #f8f9fa; border-radius: 10px; padding: 30px;">
-            <h1 style="color: #007bff;">Welcome to Cardora!</h1>
 
             <p>Hello <strong>{user_name}</strong>,</p>
 
@@ -203,7 +179,6 @@ async def send_welcome_email(email: str, user_name: str) -> bool:
 
             <div style="text-align: center; margin: 30px 0;">
                 <a href="{settings.FRONTEND_URL}/login"
-                   style="background-color: #28a745; color: white; padding: 12px 30px;
                           text-decoration: none; border-radius: 5px; display: inline-block;
                           font-weight: bold;">
                     Get Started
@@ -211,7 +186,6 @@ async def send_welcome_email(email: str, user_name: str) -> bool:
             </div>
         </div>
 
-        <div style="text-align: center; color: #6c757d; font-size: 12px; margin-top: 20px;">
             <p>Welcome aboard!</p>
             <p>The Cardora Team</p>
         </div>
@@ -247,7 +221,6 @@ async def send_welcome_email(email: str, user_name: str) -> bool:
 
 
 # ============================================================
-# COMPARE TO .NET
 # ============================================================
 """
 In ASP.NET Core, you'd typically use:

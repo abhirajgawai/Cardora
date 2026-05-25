@@ -1,7 +1,6 @@
 """
 Password Hashing and Verification Utilities
 
-Compare to .NET:
     - Like using IPasswordHasher<User> in ASP.NET Core Identity
     - Or Microsoft.AspNetCore.Identity.PasswordHasher
 
@@ -18,27 +17,17 @@ In Python with passlib:
 from passlib.context import CryptContext
 
 # ═══════════════════════════════════════════════════════════════════
-# PASSWORD CONTEXT CONFIGURATION
 # ═══════════════════════════════════════════════════════════════════
-# Compare to .NET: Like configuring PasswordHasherOptions
-# We use bcrypt algorithm which is secure and industry-standard
-# - "bcrypt" is the hashing algorithm (same as BCrypt.Net in .NET)
-# - deprecated="auto" automatically handles upgrading old hashes
 
-pwd_context = CryptContext(
-    schemes=["bcrypt"],  # Hashing algorithm
-    deprecated="auto"     # Auto-upgrade deprecated hashes
-)
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # ═══════════════════════════════════════════════════════════════════
-# PASSWORD HASHING
 # ═══════════════════════════════════════════════════════════════════
 
 def hash_password(password: str) -> str:
     """
     Hash a plain-text password using bcrypt.
 
-    Compare to .NET:
         var hasher = new PasswordHasher<User>();
         string hashed = hasher.HashPassword(user, "MyPassword123!");
 
@@ -51,7 +40,6 @@ def hash_password(password: str) -> str:
     Example:
         >>> hashed = hash_password("MySecurePassword123!")
         >>> print(hashed)
-        $2b$12$KIXxl234abc...  # bcrypt hash (60 chars)
 
     Security Notes:
         - Uses bcrypt with automatic salt generation
@@ -66,7 +54,6 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
     Verify a plain-text password against a hashed password.
 
-    Compare to .NET:
         var hasher = new PasswordHasher<User>();
         var result = hasher.VerifyHashedPassword(user, hashedPassword, password);
         bool isValid = (result == PasswordVerificationResult.Success);
@@ -94,21 +81,17 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 # ═══════════════════════════════════════════════════════════════════
-# USAGE EXAMPLE
 # ═══════════════════════════════════════════════════════════════════
 """
-# When user registers:
 from app.features.auth.password import hash_password
 
 user = User(
     email="john@example.com",
-    hashed_password=hash_password("UserPassword123!"),  # Hash before storing
     full_name="John Doe"
 )
 db.add(user)
 db.commit()
 
-# When user logs in:
 from app.features.auth.password import verify_password
 
 user = db.query(User).filter(User.email == "john@example.com").first()
@@ -118,7 +101,6 @@ else:
     print("Invalid credentials")
 
 
-# Compare to .NET:
 // Registration
 var passwordHasher = new PasswordHasher<User>();
 var user = new User

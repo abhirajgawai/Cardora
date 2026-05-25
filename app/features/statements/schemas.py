@@ -1,7 +1,6 @@
 """
 Statement Pydantic Schemas (DTOs)
 
-Compare to .NET: Like having DTOs for Statements
     - StatementResponse → StatementDto (output)
     - StatementUploadResponse → UploadResultDto (output)
 
@@ -18,19 +17,16 @@ from datetime import datetime
 from typing import Optional, List
 from decimal import Decimal
 
-# Import TransactionResponse for nested response
 from app.features.transactions.schemas import TransactionResponse
 
 
 # ═══════════════════════════════════════════════════════════════════
-# STATEMENT RESPONSE (Output)
 # ═══════════════════════════════════════════════════════════════════
 
 class StatementResponse(BaseModel):
     """
     Schema for statement data response (output)
 
-    Compare to .NET:
         public class StatementDto
         {
             public Guid Id { get; set; }
@@ -138,9 +134,7 @@ class StatementResponse(BaseModel):
         examples=["2024-10-22T10:35:00Z"]
     )
 
-    # Configuration
     model_config = ConfigDict(
-        from_attributes=True,  # Allows creation from ORM models
         json_schema_extra={
             "example": {
                 "id": "880e8400-e29b-41d4-a716-446655440003",
@@ -162,14 +156,12 @@ class StatementResponse(BaseModel):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# STATEMENT UPLOAD RESPONSE (Output - after PDF upload)
 # ═══════════════════════════════════════════════════════════════════
 
 class StatementUploadResponse(BaseModel):
     """
     Schema for statement upload result (output)
 
-    Compare to .NET:
         public class UploadResultDto
         {
             public StatementDto Statement { get; set; }
@@ -218,7 +210,6 @@ class StatementUploadResponse(BaseModel):
         }]
     )
 
-    # Configuration
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -240,7 +231,6 @@ class StatementUploadResponse(BaseModel):
                         "category": {
                             "name": "Dining",
                             "icon": "🍽️",
-                            "color": "#FF9800"
                         }
                     }
                 ],
@@ -263,7 +253,6 @@ class StatementUploadResponse(BaseModel):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# STATEMENT LIST RESPONSE (for pagination)
 # ═══════════════════════════════════════════════════════════════════
 
 class StatementListResponse(BaseModel):
@@ -297,7 +286,6 @@ class StatementListResponse(BaseModel):
         examples=[10]
     )
 
-    # Configuration
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -321,7 +309,6 @@ class StatementListResponse(BaseModel):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# STATEMENT STATUS RESPONSE (for polling insights generation)
 # ═══════════════════════════════════════════════════════════════════
 
 class StatementStatusResponse(BaseModel):
@@ -362,7 +349,6 @@ class StatementStatusResponse(BaseModel):
         examples=["Failed to generate insights: insufficient data"]
     )
 
-    # Configuration
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
@@ -378,10 +364,8 @@ class StatementStatusResponse(BaseModel):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# USAGE EXAMPLES
 # ═══════════════════════════════════════════════════════════════════
 """
-# Example 1: Upload PDF statement (THE MAIN FEATURE!)
 POST /statements/upload
 Content-Type: multipart/form-data
 Authorization: Bearer <token>
@@ -392,7 +376,6 @@ Form Data:
 - statement_month: 10
 - statement_year: 2024
 
-# Response 201 Created (after ~10-15 seconds of AI processing):
 {
     "statement": {
         "id": "880e8400-e29b-41d4-a716-446655440003",
@@ -422,7 +405,6 @@ Form Data:
                 "id": "990e8400-e29b-41d4-a716-446655440004",
                 "name": "Dining",
                 "icon": "🍽️",
-                "color": "#FF9800",
                 "is_custom": false
             }
         },
@@ -438,7 +420,6 @@ Form Data:
                 "id": "220e8400-e29b-41d4-a716-446655440006",
                 "name": "Groceries",
                 "icon": "🛒",
-                "color": "#4CAF50",
                 "is_custom": false
             }
         }
@@ -460,11 +441,9 @@ Form Data:
 }
 
 
-# Example 2: List all statements
 GET /statements?page=1&limit=10
 Authorization: Bearer <token>
 
-# Response 200 OK:
 {
     "statements": [
         {
@@ -498,11 +477,9 @@ Authorization: Bearer <token>
 }
 
 
-# Example 3: Get specific statement with transactions
 GET /statements/880e8400-e29b-41d4-a716-446655440003
 Authorization: Bearer <token>
 
-# Response 200 OK:
 {
     "statement": {
         "id": "880e8400-e29b-41d4-a716-446655440003",

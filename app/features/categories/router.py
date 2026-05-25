@@ -9,7 +9,6 @@ Future endpoints (not implemented yet):
 - PATCH /categories/{category_id} - Update custom category
 - DELETE /categories/{category_id} - Delete custom category
 
-Compare to .NET: Like CategoriesController
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -23,7 +22,6 @@ from app.features.categories.schemas import CategoryResponse
 from app.features.auth.jwt import get_current_user
 
 # ═══════════════════════════════════════════════════════════════════
-# ROUTER SETUP
 # ═══════════════════════════════════════════════════════════════════
 
 router = APIRouter(
@@ -33,7 +31,6 @@ router = APIRouter(
 
 
 # ═══════════════════════════════════════════════════════════════════
-# GET /categories - List All Categories
 # ═══════════════════════════════════════════════════════════════════
 
 @router.get(
@@ -60,33 +57,24 @@ async def list_categories(
     3. Alphabetically by name
     """
 
-    # Get system categories (user_id = NULL) + user's custom categories
     categories = db.query(Category).filter(
-        (Category.user_id == None) |  # System categories
-        (Category.user_id == current_user.id)  # User's custom categories
     ).order_by(
-        Category.is_custom.asc(),  # System categories first
-        Category.name.asc()  # Then alphabetically
     ).all()
 
     return [CategoryResponse.model_validate(cat) for cat in categories]
 
 
 # ═══════════════════════════════════════════════════════════════════
-# USAGE EXAMPLES
 # ═══════════════════════════════════════════════════════════════════
 """
-# Example 1: List all categories
 GET /categories
 Authorization: Bearer <token>
 
-# Response 200 OK:
 [
     {
         "id": "550e8400-e29b-41d4-a716-446655440000",
         "name": "Groceries",
         "icon": "🛒",
-        "color": "#4CAF50",
         "is_custom": false,
         "created_at": "2024-10-22T10:30:00Z"
     },
@@ -94,7 +82,6 @@ Authorization: Bearer <token>
         "id": "660e8400-e29b-41d4-a716-446655440001",
         "name": "Dining",
         "icon": "🍽️",
-        "color": "#FF9800",
         "is_custom": false,
         "created_at": "2024-10-22T10:30:00Z"
     },

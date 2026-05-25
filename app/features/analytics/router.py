@@ -10,7 +10,6 @@ This router provides powerful analytics across multiple credit cards:
 - Annual spending breakdown
 - Per-card and per-category insights
 
-Compare to .NET: Like AnalyticsController with complex aggregation queries
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -38,7 +37,6 @@ from app.features.analytics.schemas import (
 from app.features.auth.jwt import get_current_user
 
 # ═══════════════════════════════════════════════════════════════════
-# ROUTER SETUP
 # ═══════════════════════════════════════════════════════════════════
 
 router = APIRouter(
@@ -48,7 +46,6 @@ router = APIRouter(
 
 
 # ═══════════════════════════════════════════════════════════════════
-# GET /analytics/monthly - Monthly Analysis (ALL CARDS COMBINED)
 # ═══════════════════════════════════════════════════════════════════
 
 @router.get(
@@ -98,7 +95,6 @@ async def get_monthly_analysis(
     }
     """
 
-    # Get all transactions for the month across all user's cards
     transactions = db.query(Transaction).filter(
         Transaction.user_id == current_user.id,
         Transaction.statement_month == month,
@@ -111,11 +107,9 @@ async def get_monthly_analysis(
             detail=f"No transactions found for {month}/{year}"
         )
 
-    # Calculate total spending
     total_spending = sum(t.amount for t in transactions)
     total_transactions = len(transactions)
 
-    # Per-card breakdown
     card_spending = defaultdict(lambda: {"spending": Decimal("0.00"), "count": 0})
 
     for trans in transactions:
@@ -136,10 +130,8 @@ async def get_monthly_analysis(
             "percentage": round(percentage, 2)
         })
 
-    # Sort by spending (highest first)
     cards_included.sort(key=lambda x: x["spending"], reverse=True)
 
-    # Category breakdown
     category_breakdown = {}
     for trans in transactions:
         cat_name = trans.category.name if trans.category else "Uncategorized"
@@ -147,7 +139,6 @@ async def get_monthly_analysis(
             category_breakdown[cat_name] = Decimal("0.00")
         category_breakdown[cat_name] += trans.amount
 
-    # Top merchants (top 10)
     merchant_spending = defaultdict(Decimal)
     for trans in transactions:
         merchant_spending[trans.merchant_name] += trans.amount
@@ -173,7 +164,6 @@ async def get_monthly_analysis(
 
 
 # ═══════════════════════════════════════════════════════════════════
-# GET /analytics/compare - Compare Two Months
 # ═══════════════════════════════════════════════════════════════════
 
 @router.get(
@@ -205,14 +195,12 @@ async def compare_months(
     GET /analytics/compare?current_month=4&current_year=2025&compare_month=3&compare_year=2025
     """
 
-    # Get transactions for current month
     current_trans = db.query(Transaction).filter(
         Transaction.user_id == current_user.id,
         Transaction.statement_month == current_month,
         Transaction.statement_year == current_year
     ).all()
 
-    # Get transactions for comparison month
     compare_trans = db.query(Transaction).filter(
         Transaction.user_id == current_user.id,
         Transaction.statement_month == compare_month,
@@ -225,14 +213,12 @@ async def compare_months(
             detail="Insufficient data for comparison"
         )
 
-    # Calculate totals
     current_total = sum(t.amount for t in current_trans)
     compare_total = sum(t.amount for t in compare_trans)
 
     difference = current_total - compare_total
     percentage_change = float((difference / compare_total) * 100) if compare_total > 0 else 0.0
 
-    # Category-by-category comparison
     current_categories = defaultdict(Decimal)
     compare_categories = defaultdict(Decimal)
 
@@ -244,7 +230,6 @@ async def compare_months(
         cat_name = trans.category.name if trans.category else "Uncategorized"
         compare_categories[cat_name] += trans.amount
 
-    # Combine all categories
     all_categories = set(current_categories.keys()) | set(compare_categories.keys())
 
     category_changes = {}
@@ -281,7 +266,6 @@ async def compare_months(
 
 
 # ═══════════════════════════════════════════════════════════════════
-# GET /analytics/trend - Multi-Month Trend Analysis
 # ═══════════════════════════════════════════════════════════════════
 
 @router.get(
@@ -324,16 +308,13 @@ async def get_trend_analysis(
     }
     """
 
-    # Calculate date range
     today = datetime.now()
     end_month = today.month
     end_year = today.year
 
-    # Get transactions for the last N months
     monthly_data = []
 
     for i in range(months):
-        # Calculate month/year
         target_month = end_month - i
         target_year = end_year
 
@@ -341,7 +322,6 @@ async def get_trend_analysis(
             target_month += 12
             target_year -= 1
 
-        # Get transactions for this month
         trans = db.query(Transaction).filter(
             Transaction.user_id == current_user.id,
             Transaction.statement_month == target_month,
@@ -364,20 +344,16 @@ async def get_trend_analysis(
             detail=f"No data found for the last {months} months"
         )
 
-    # Reverse to show oldest first
     monthly_data.reverse()
 
-    # Calculate statistics
     totals = [d["total"] for d in monthly_data]
     average_monthly = sum(totals) / len(totals) if totals else Decimal("0.00")
 
     highest_month = max(monthly_data, key=lambda x: x["total"])
     lowest_month = min(monthly_data, key=lambda x: x["total"])
 
-    # Category trends (simplified - just show top 5 categories)
     category_trends = {}
 
-    # Get all unique categories from these months
     all_trans = db.query(Transaction).filter(
         Transaction.user_id == current_user.id
     ).all()
@@ -395,7 +371,6 @@ async def get_trend_analysis(
         desc('total')
     ).limit(5).all()
 
-    # For each top category, get monthly spending
     for cat_name, _ in top_categories:
         category_trends[cat_name] = []
 
@@ -410,7 +385,6 @@ async def get_trend_analysis(
             month_total = sum(t.amount for t in month_trans) if month_trans else Decimal("0.00")
             category_trends[cat_name].append(month_total)
 
-    # Calculate start and end dates
     start_month_data = monthly_data[0]
     end_month_data = monthly_data[-1]
 
@@ -430,7 +404,6 @@ async def get_trend_analysis(
 
 
 # ═══════════════════════════════════════════════════════════════════
-# GET /analytics/annual - Full Year Analysis
 # ═══════════════════════════════════════════════════════════════════
 
 @router.get(
@@ -460,7 +433,6 @@ async def get_annual_analysis(
     GET /analytics/annual?year=2025
     """
 
-    # Get all transactions for the year
     transactions = db.query(Transaction).filter(
         Transaction.user_id == current_user.id,
         Transaction.statement_year == year
@@ -472,10 +444,8 @@ async def get_annual_analysis(
             detail=f"No transactions found for year {year}"
         )
 
-    # Calculate total
     total_spending = sum(t.amount for t in transactions)
 
-    # Group by month
     monthly_breakdown = defaultdict(lambda: {"total": Decimal("0.00"), "count": 0})
 
     for trans in transactions:
@@ -483,7 +453,6 @@ async def get_annual_analysis(
         monthly_breakdown[month]["total"] += trans.amount
         monthly_breakdown[month]["count"] += 1
 
-    # Convert to list
     monthly_list = []
     for month in range(1, 13):
         if month in monthly_breakdown:
@@ -499,7 +468,6 @@ async def get_annual_analysis(
     months_covered = len(monthly_list)
     average_monthly = total_spending / months_covered if months_covered > 0 else Decimal("0.00")
 
-    # Category totals
     category_totals = defaultdict(Decimal)
     for trans in transactions:
         cat_name = trans.category.name if trans.category else "Uncategorized"
@@ -516,22 +484,17 @@ async def get_annual_analysis(
 
 
 # ═══════════════════════════════════════════════════════════════════
-# USAGE EXAMPLES
 # ═══════════════════════════════════════════════════════════════════
 """
-# Example 1: Get April 2025 spending across all cards
 GET /analytics/monthly?month=4&year=2025
 Authorization: Bearer <token>
 
-# Example 2: Compare April vs March
 GET /analytics/compare?current_month=4&current_year=2025&compare_month=3&compare_year=2025
 Authorization: Bearer <token>
 
-# Example 3: Get 6-month trend
 GET /analytics/trend?months=6
 Authorization: Bearer <token>
 
-# Example 4: Get 2025 annual report
 GET /analytics/annual?year=2025
 Authorization: Bearer <token>
 """

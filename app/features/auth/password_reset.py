@@ -1,7 +1,6 @@
 """
 Password Reset Utilities
 
-Compare to .NET ASP.NET Core Identity:
     var token = await _userManager.GeneratePasswordResetTokenAsync(user);
     var result = await _userManager.ResetPasswordAsync(user, token, newPassword);
 
@@ -20,7 +19,6 @@ def generate_reset_token() -> str:
     """
     Generate a cryptographically secure reset token
 
-    Compare to .NET:
         var token = await _userManager.GeneratePasswordResetTokenAsync(user);
 
     Returns:
@@ -29,8 +27,6 @@ def generate_reset_token() -> str:
     The token is generated using Python's secrets module which is
     cryptographically strong random number generator.
     """
-    # Generate 32 random bytes, encode as URL-safe base64
-    # Results in ~43 characters
     return secrets.token_urlsafe(32)
 
 
@@ -43,7 +39,6 @@ def hash_reset_token(token: str) -> str:
     - Similar to password hashing
     - We store hashed version, send plain version via email
 
-    Compare to .NET:
         // ASP.NET Core Identity hashes tokens internally
         // We need to do it manually in our implementation
 
@@ -60,7 +55,6 @@ def create_password_reset_token(db: Session, user: User) -> str:
     """
     Create and store password reset token for user
 
-    Compare to .NET:
         var token = await _userManager.GeneratePasswordResetTokenAsync(user);
         // Token is stored internally by Identity
 
@@ -77,26 +71,20 @@ def create_password_reset_token(db: Session, user: User) -> str:
         - Sets expiration time
         - Commits to database
     """
-    # Generate plain token
     plain_token = generate_reset_token()
 
-    # Hash the token for storage
     hashed_token = hash_reset_token(plain_token)
 
-    # Set expiration time
     expires_at = datetime.now(timezone.utc) + timedelta(
         minutes=settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES
     )
 
-    # Update user record
     user.reset_token = hashed_token
     user.reset_token_expires = expires_at
 
-    # Commit to database
     db.commit()
     db.refresh(user)
 
-    # Return plain token (to be sent via email)
     return plain_token
 
 
@@ -104,7 +92,6 @@ def verify_reset_token(db: Session, token: str) -> User | None:
     """
     Verify reset token and return user if valid
 
-    Compare to .NET:
         var result = await _userManager.VerifyUserTokenAsync(
             user,
             _userManager.Options.Tokens.PasswordResetTokenProvider,
@@ -125,10 +112,8 @@ def verify_reset_token(db: Session, token: str) -> User | None:
         3. Check token hasn't expired
         4. Check user account is active
     """
-    # Hash the provided token
     hashed_token = hash_reset_token(token)
 
-    # Find user with this token
     user = db.query(User).filter(
         User.reset_token == hashed_token
     ).first()
@@ -136,17 +121,14 @@ def verify_reset_token(db: Session, token: str) -> User | None:
     if not user:
         return None
 
-    # Check if token has expired
     if not user.reset_token_expires:
         return None
 
     now = datetime.now(timezone.utc)
     if now > user.reset_token_expires:
-        # Token expired - clear it from database
         clear_reset_token(db, user)
         return None
 
-    # Check if user account is active
     if not user.is_active:
         return None
 
@@ -157,7 +139,6 @@ def clear_reset_token(db: Session, user: User) -> None:
     """
     Clear password reset token from user
 
-    Compare to .NET:
         // ASP.NET Core Identity clears token automatically after use
         // We need to do it manually
 
@@ -198,7 +179,6 @@ def is_reset_token_expired(user: User) -> bool:
 
 
 # ============================================================
-# COMPARE TO .NET ASP.NET CORE IDENTITY
 # ============================================================
 """
 ASP.NET Core Identity handles password reset like this:

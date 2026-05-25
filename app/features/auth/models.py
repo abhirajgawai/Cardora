@@ -1,7 +1,6 @@
 """
 User Model for Cardora Authentication
 
-Compare to .NET:
 This is like creating an Entity class in Entity Framework Core.
 In .NET, you'd have a User.cs file in your Models or Entities folder.
 
@@ -21,7 +20,6 @@ class User(Base):
     """
     User Entity - Represents a Cardora user account
 
-    Compare to .NET:
     public class User
     {
         [Key]
@@ -41,7 +39,6 @@ class User(Base):
     """
 
     # ============================================================
-    # TABLE NAME AND SCHEMA
     # ============================================================
     __tablename__ = "users"
     __table_args__ = {'schema': 'cardora'}
@@ -70,14 +67,12 @@ class User(Base):
     """
 
     # ============================================================
-    # PRIMARY KEY
     # ============================================================
     id = Column(
-        UUID(as_uuid=True),  # PostgreSQL UUID type
-        primary_key=True,    # This is the primary key
-        default=uuid.uuid4,  # Auto-generate UUID
-        unique=True,
-        nullable=False
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        nullable=False,
     )
 
     """
@@ -101,13 +96,12 @@ class User(Base):
     """
 
     # ============================================================
-    # USER CREDENTIALS
     # ============================================================
     email = Column(
-        String(255),         # VARCHAR(255)
-        unique=True,         # UNIQUE constraint (no duplicate emails)
-        nullable=False,      # NOT NULL constraint (required)
-        index=True           # Create index for faster lookups
+        String(255),
+        unique=True,
+        nullable=False,
+        index=True,
     )
 
     """
@@ -159,11 +153,9 @@ class User(Base):
     """
 
     # ============================================================
-    # USER PROFILE
     # ============================================================
     full_name = Column(
         String(255),
-        nullable=True  # Optional field
     )
 
     """
@@ -180,12 +172,10 @@ class User(Base):
     """
 
     # ============================================================
-    # USER SETTINGS
     # ============================================================
     timezone = Column(
         String(50),
         nullable=False,
-        default="Asia/Singapore"  # Default value
     )
 
     """
@@ -209,7 +199,6 @@ class User(Base):
     """
 
     # ============================================================
-    # USER STATUS FLAGS
     # ============================================================
     is_active = Column(
         Boolean,
@@ -253,13 +242,9 @@ class User(Base):
     """
 
     # ============================================================
-    # PASSWORD RESET FIELDS
     # ============================================================
     reset_token = Column(
         String(255),
-        nullable=True,  # NULL when no reset is in progress
-        unique=True,    # Each reset token must be unique
-        index=True      # Index for fast token lookups
     )
 
     """
@@ -295,7 +280,6 @@ class User(Base):
 
     reset_token_expires = Column(
         DateTime(timezone=True),
-        nullable=True  # NULL when no reset is in progress
     )
 
     """
@@ -325,12 +309,11 @@ class User(Base):
     """
 
     # ============================================================
-    # TIMESTAMPS
     # ============================================================
     created_at = Column(
-        DateTime(timezone=True),    # TIMESTAMP WITH TIME ZONE
+        DateTime(timezone=True),
+        server_default=func.now(),
         nullable=False,
-        server_default=func.now()   # Database sets this on INSERT
     )
 
     """
@@ -366,9 +349,9 @@ class User(Base):
 
     updated_at = Column(
         DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
         nullable=False,
-        server_default=func.now(),  # Set on INSERT
-        onupdate=func.now()         # Update on every UPDATE
     )
 
     """
@@ -397,71 +380,44 @@ class User(Base):
     """
 
     # ============================================================
-    # RELATIONSHIPS (ORM Navigation Properties)
     # ============================================================
 
-    # Relationship to CreditCards (One-to-Many)
-    # "A user has many credit cards"
     credit_cards = relationship(
-        "CreditCard",                # Target model
-        back_populates="user",       # Property in CreditCard model
-        cascade="all, delete-orphan"  # Delete cards when user is deleted
+        "CreditCard",
+        back_populates="user",
+        cascade="all, delete-orphan",
     )
-    # Compare to .NET: public List<CreditCard> CreditCards { get; set; }
-
-    # Relationship to Transactions (One-to-Many)
-    # "A user has many transactions"
+    
     transactions = relationship(
         "Transaction",
         back_populates="user",
         cascade="all, delete-orphan"
     )
-    # Compare to .NET: public List<Transaction> Transactions { get; set; }
-
-    # Relationship to Statements (One-to-Many)
-    # "A user has many statements"
+    
     statements = relationship(
         "Statement",
         back_populates="user",
         cascade="all, delete-orphan"
     )
-    # Compare to .NET: public List<Statement> Statements { get; set; }
-
-    # Relationship to Categories (One-to-Many)
-    # "A user has many custom categories"
+    
     categories = relationship(
         "Category",
         back_populates="user",
         cascade="all, delete-orphan"
     )
-    # Compare to .NET: public List<Category> Categories { get; set; }
-
-    # Relationship to Insights (One-to-Many)
-    # "A user has many insights"
-    insights = relationship(
-        "Insight",
-        back_populates="user",
-        cascade="all, delete-orphan"
-    )
-    # Compare to .NET: public List<Insight> Insights { get; set; }
-
-    # Relationship to PaymentAlerts (One-to-Many)
-    # "A user has many payment alerts"
+    
     payment_alerts = relationship(
         "PaymentAlert",
         back_populates="user",
         cascade="all, delete-orphan"
     )
-    # Compare to .NET: public List<PaymentAlert> PaymentAlerts { get; set; }
-
+    
     # ============================================================
-    # PYTHON MAGIC METHODS
     # ============================================================
     def __repr__(self):
         """
         String representation of User object
 
-        Compare to .NET:
         public override string ToString()
         {
             return $"User(id={Id}, email={Email})";
@@ -474,7 +430,6 @@ class User(Base):
 
 
 # ============================================================
-# SUMMARY OF KEY CONCEPTS
 # ============================================================
 """
 ┌─────────────────────────────────────────────────────────────┐

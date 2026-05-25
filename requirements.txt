@@ -33,6 +33,10 @@ python-multipart==0.0.9  # For form data parsing
 # Database migrations (like EF Core migrations)
 alembic==1.13.1  # Database migration tool
 
+# AI / document extraction dependencies
+google-generativeai==0.8.5  # Gemini API client (imported in app/core/gemini_service.py)
+PyPDF2==3.0.1               # PDF text extraction (imported in app/core/gemini_service.py)
+
 # Testing dependencies
 requests==2.32.5  # HTTP client for testing API endpoints
 python-http-client==3.3.7

@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { ArrowRight, CreditCard, Sparkles, Shield, TrendingUp, Zap, Brain, FileText, BarChart3, Lock, Upload, Eye, X, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowRight, CreditCard, Sparkles, Shield, TrendingUp, Zap, Brain, FileText, BarChart3, Lock, Upload, Eye, X, Check, ChevronDown, ChevronUp, CheckCircle2, XCircle, FileX, Database, Info } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -595,8 +595,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <section className="relative py-32 px-6 bg-muted/30">
+      {/* Data Lifecycle Transparency Section */}
+      <section className="relative py-32 px-6">
         <div className="max-w-7xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -605,56 +605,223 @@ export default function Home() {
             transition={{ duration: 0.8 }}
             className="text-center mb-16"
           >
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-effect border border-emerald-500/30 mb-6">
+              <Shield className="w-5 h-5 text-emerald-500" />
+              <span className="text-sm font-medium text-emerald-500">100% Transparent</span>
+            </div>
             <h2 className="text-5xl md:text-6xl font-bold mb-6 text-foreground">
-              Loved by privacy-conscious users
+              What happens to your PDF?
             </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Join thousands who've taken back control of their financial data
+              Complete transparency about how we handle your sensitive documents
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            {[
-              {
-                quote: "Finally, a finance app that doesn't ask for my bank password. I was so uncomfortable with Mint's Plaid integration. Cardora is exactly what I needed.",
-                author: "Sarah M.",
-                role: "Privacy Advocate",
-                rating: 5
-              },
-              {
-                quote: "I love having complete control over what data I share. Upload statements when I want, get insights immediately. No creepy bank account access.",
-                author: "Michael T.",
-                role: "Software Engineer",
-                rating: 5
-              },
-              {
-                quote: "As someone who works in cybersecurity, I can't trust apps that link to my bank. Cardora's upload-only approach is brilliant and secure.",
-                author: "Jennifer L.",
-                role: "Security Analyst",
-                rating: 5
-              }
-            ].map((testimonial, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="fintech-card p-8 card-hover"
-              >
-                <div className="flex gap-1 mb-4">
-                  {[...Array(testimonial.rating)].map((_, i) => (
-                    <span key={i} className="text-amber-500 text-xl">★</span>
-                  ))}
-                </div>
-                <p className="text-foreground mb-6 leading-relaxed italic">"{testimonial.quote}"</p>
-                <div>
-                  <p className="font-semibold text-foreground">{testimonial.author}</p>
-                  <p className="text-sm text-muted-foreground">{testimonial.role}</p>
-                </div>
-              </motion.div>
-            ))}
+          {/* Timeline Visualization */}
+          <div className="max-w-5xl mx-auto">
+            <div className="relative">
+              {/* Vertical timeline line */}
+              <div className="absolute left-8 md:left-1/2 top-0 bottom-0 w-0.5 bg-gradient-to-b from-primary via-accent to-emerald-500" />
+
+              {/* Timeline Steps */}
+              <div className="space-y-12">
+                {/* Step 1: Upload */}
+                <motion.div
+                  initial={{ opacity: 0, x: -50 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.6 }}
+                  className="relative flex items-center gap-8"
+                >
+                  <div className="hidden md:flex flex-1 justify-end">
+                    <div className="fintech-card p-6 max-w-md border-primary/30">
+                      <h3 className="text-xl font-bold text-foreground mb-2">1. You Upload PDF</h3>
+                      <p className="text-muted-foreground">Your credit card statement is uploaded securely via encrypted connection (TLS 1.3)</p>
+                    </div>
+                  </div>
+                  <div className="absolute left-8 md:left-1/2 transform md:-translate-x-1/2 w-16 h-16 rounded-full bg-primary flex items-center justify-center z-10 shadow-lg">
+                    <Upload className="w-8 h-8 text-white" />
+                  </div>
+                  <div className="flex-1 ml-24 md:ml-0">
+                    <div className="fintech-card p-6 md:hidden border-primary/30">
+                      <h3 className="text-xl font-bold text-foreground mb-2">1. You Upload PDF</h3>
+                      <p className="text-muted-foreground">Your credit card statement is uploaded securely via encrypted connection (TLS 1.3)</p>
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* Step 2: Processing */}
+                <motion.div
+                  initial={{ opacity: 0, x: 50 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.6, delay: 0.2 }}
+                  className="relative flex items-center gap-8"
+                >
+                  <div className="flex-1 mr-24 md:mr-0">
+                    <div className="md:hidden" />
+                  </div>
+                  <div className="absolute left-8 md:left-1/2 transform md:-translate-x-1/2 w-16 h-16 rounded-full bg-accent flex items-center justify-center z-10 shadow-lg">
+                    <Brain className="w-8 h-8 text-white" />
+                  </div>
+                  <div className="flex-1 ml-24 md:ml-0">
+                    <div className="fintech-card p-6 max-w-md border-accent/30">
+                      <h3 className="text-xl font-bold text-foreground mb-2">2. AI Extracts Data (30-60 seconds)</h3>
+                      <p className="text-muted-foreground">Processed in-memory only. We extract transactions, dates, amounts, and categories. Never saved to disk.</p>
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* Step 3: PDF Deleted */}
+                <motion.div
+                  initial={{ opacity: 0, x: -50 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.6, delay: 0.4 }}
+                  className="relative flex items-center gap-8"
+                >
+                  <div className="hidden md:flex flex-1 justify-end">
+                    <div className="fintech-card p-6 max-w-md border-destructive/30 bg-destructive/5">
+                      <h3 className="text-xl font-bold text-foreground mb-2">3. PDF DELETED (&lt; 1 minute)</h3>
+                      <p className="text-muted-foreground">Your PDF is permanently deleted from our servers. No copies. No backups. Gone forever.</p>
+                      <div className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-emerald-500">
+                        <CheckCircle2 className="w-4 h-4" />
+                        Automatically deleted
+                      </div>
+                    </div>
+                  </div>
+                  <div className="absolute left-8 md:left-1/2 transform md:-translate-x-1/2 w-16 h-16 rounded-full bg-destructive flex items-center justify-center z-10 shadow-lg">
+                    <FileX className="w-8 h-8 text-white" />
+                  </div>
+                  <div className="flex-1 ml-24 md:ml-0">
+                    <div className="fintech-card p-6 md:hidden border-destructive/30 bg-destructive/5">
+                      <h3 className="text-xl font-bold text-foreground mb-2">3. PDF DELETED (&lt; 1 minute)</h3>
+                      <p className="text-muted-foreground">Your PDF is permanently deleted from our servers. No copies. No backups. Gone forever.</p>
+                      <div className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-emerald-500">
+                        <CheckCircle2 className="w-4 h-4" />
+                        Automatically deleted
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* Step 4: Data Stored */}
+                <motion.div
+                  initial={{ opacity: 0, x: 50 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.6, delay: 0.6 }}
+                  className="relative flex items-center gap-8"
+                >
+                  <div className="flex-1 mr-24 md:mr-0">
+                    <div className="md:hidden" />
+                  </div>
+                  <div className="absolute left-8 md:left-1/2 transform md:-translate-x-1/2 w-16 h-16 rounded-full bg-secondary flex items-center justify-center z-10 shadow-lg">
+                    <Database className="w-8 h-8 text-white" />
+                  </div>
+                  <div className="flex-1 ml-24 md:ml-0">
+                    <div className="fintech-card p-6 max-w-md border-secondary/30">
+                      <h3 className="text-xl font-bold text-foreground mb-2">4. Only Transaction Data Stored</h3>
+                      <p className="text-muted-foreground">We keep: dates, merchants, amounts, categories. We don't keep: full card numbers, CVV, passwords.</p>
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* Step 5: Your Control */}
+                <motion.div
+                  initial={{ opacity: 0, x: -50 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.6, delay: 0.8 }}
+                  className="relative flex items-center gap-8"
+                >
+                  <div className="hidden md:flex flex-1 justify-end">
+                    <div className="fintech-card p-6 max-w-md border-emerald-500/30 bg-emerald-500/5">
+                      <h3 className="text-xl font-bold text-foreground mb-2">5. You Control Everything</h3>
+                      <p className="text-muted-foreground">Export your data anytime. Delete it with one click. Close your account whenever you want.</p>
+                      <div className="mt-4 flex gap-2">
+                        <Link href="/data-transparency" className="text-sm font-semibold text-primary hover:underline">
+                          View Data Controls →
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="absolute left-8 md:left-1/2 transform md:-translate-x-1/2 w-16 h-16 rounded-full bg-emerald-500 flex items-center justify-center z-10 shadow-lg">
+                    <Shield className="w-8 h-8 text-white" />
+                  </div>
+                  <div className="flex-1 ml-24 md:ml-0">
+                    <div className="fintech-card p-6 md:hidden border-emerald-500/30 bg-emerald-500/5">
+                      <h3 className="text-xl font-bold text-foreground mb-2">5. You Control Everything</h3>
+                      <p className="text-muted-foreground">Export your data anytime. Delete it with one click. Close your account whenever you want.</p>
+                      <div className="mt-4 flex gap-2">
+                        <Link href="/data-transparency" className="text-sm font-semibold text-primary hover:underline">
+                          View Data Controls →
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              </div>
+            </div>
           </div>
+
+          {/* Key Guarantees */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8, delay: 1 }}
+            className="mt-20 grid md:grid-cols-3 gap-6 max-w-5xl mx-auto"
+          >
+            <div className="fintech-card p-6 text-center border-emerald-500/30">
+              <XCircle className="w-10 h-10 text-emerald-500 mx-auto mb-3" />
+              <h3 className="font-bold text-foreground mb-2">No Long-Term Storage</h3>
+              <p className="text-sm text-muted-foreground">Your PDF exists on our servers for less than 1 minute</p>
+            </div>
+            <div className="fintech-card p-6 text-center border-emerald-500/30">
+              <Eye className="w-10 h-10 text-emerald-500 mx-auto mb-3" />
+              <h3 className="font-bold text-foreground mb-2">Full Transparency</h3>
+              <p className="text-sm text-muted-foreground">See exactly what data we have about you</p>
+            </div>
+            <div className="fintech-card p-6 text-center border-emerald-500/30">
+              <Shield className="w-10 h-10 text-emerald-500 mx-auto mb-3" />
+              <h3 className="font-bold text-foreground mb-2">Your Control</h3>
+              <p className="text-sm text-muted-foreground">Export or delete all data with one click</p>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Join Beta Section */}
+      <section className="relative py-32 px-6 bg-muted/30">
+        <div className="max-w-7xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+            className="text-center"
+          >
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-effect border border-primary/30 mb-6">
+              <Sparkles className="w-5 h-5 text-primary" />
+              <span className="text-sm font-medium text-primary">Early Access</span>
+            </div>
+            <h2 className="text-5xl md:text-6xl font-bold mb-6 text-foreground">
+              Join the privacy revolution
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
+              Be among the first to experience truly private financial management. No testimonials yet—because we're putting real users first, not fake reviews.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link
+                href="/register"
+                className="group px-8 py-4 rounded-xl gradient-indigo-purple text-white font-semibold text-lg shadow-lg btn-hover flex items-center justify-center gap-2"
+              >
+                Get Early Access
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </div>
+          </motion.div>
         </div>
       </section>
 
@@ -761,6 +928,106 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Why Free Section */}
+      <section className="relative py-32 px-6 bg-muted/30">
+        <div className="max-w-4xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+            className="text-center mb-12"
+          >
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-effect border border-primary/30 mb-6">
+              <Info className="w-5 h-5 text-primary" />
+              <span className="text-sm font-medium text-primary">Honest Answer</span>
+            </div>
+            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-foreground">
+              "Why is Cardora free?"
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              The question everyone asks. Here's the honest truth.
+            </p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="fintech-card p-10 border-primary/30"
+          >
+            <div className="space-y-6 text-lg leading-relaxed">
+              <p className="text-foreground">
+                <strong>Great question.</strong> Most people are rightfully suspicious of "free" apps in the finance space.
+              </p>
+
+              <div className="p-6 rounded-xl glass-effect border border-primary/20 bg-primary/5">
+                <p className="text-foreground mb-3">
+                  <strong className="text-primary text-xl">The Honest Answer:</strong>
+                </p>
+                <p className="text-muted-foreground">
+                  Cardora is a passion project built to solve a real problem: tracking spending without handing over bank credentials. Right now, it's free because we're in early access and focused on building the best privacy-first financial tool possible.
+                </p>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-6 mt-8">
+                <div className="p-6 rounded-xl glass-effect border border-emerald-500/20">
+                  <h3 className="text-xl font-bold text-foreground mb-3 flex items-center gap-2">
+                    <CheckCircle2 className="w-6 h-6 text-emerald-500" />
+                    Future Plans
+                  </h3>
+                  <ul className="space-y-2 text-muted-foreground">
+                    <li className="flex items-start gap-2">
+                      <span className="text-primary">•</span>
+                      <span>Core features stay free forever</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-primary">•</span>
+                      <span>Premium features for power users (multi-year trends, family accounts)</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-primary">•</span>
+                      <span>Business accounts for financial advisors</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="p-6 rounded-xl glass-effect border border-destructive/20">
+                  <h3 className="text-xl font-bold text-foreground mb-3 flex items-center gap-2">
+                    <XCircle className="w-6 h-6 text-destructive" />
+                    What We'll NEVER Do
+                  </h3>
+                  <ul className="space-y-2 text-muted-foreground">
+                    <li className="flex items-start gap-2">
+                      <span className="text-destructive">✗</span>
+                      <span>Sell your transaction data</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-destructive">✗</span>
+                      <span>Show targeted ads based on spending</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-destructive">✗</span>
+                      <span>Share data with third parties</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="mt-8 p-6 rounded-xl bg-primary/5 border border-primary/20">
+                <p className="text-center text-foreground text-xl font-bold">
+                  No VC funding = No pressure to monetize your privacy
+                </p>
+                <p className="text-center text-muted-foreground mt-2">
+                  We're building this the right way, not the fast way.
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="relative py-32 px-6">
         <div className="max-w-4xl mx-auto">
@@ -831,10 +1098,11 @@ export default function Home() {
               </div>
             </div>
             <div className="flex gap-8 text-muted-foreground">
+              <Link href="/data-transparency" className="hover:text-foreground transition-colors font-medium">Data Controls</Link>
+              <Link href="/about" className="hover:text-foreground transition-colors font-medium">About</Link>
               <Link href="/privacy" className="hover:text-foreground transition-colors font-medium">Privacy</Link>
               <Link href="/terms" className="hover:text-foreground transition-colors font-medium">Terms</Link>
               <Link href="/contact" className="hover:text-foreground transition-colors font-medium">Contact</Link>
-              <Link href="/about" className="hover:text-foreground transition-colors font-medium">About</Link>
             </div>
           </div>
           <div className="text-center text-muted-foreground text-sm border-t border-border pt-8">

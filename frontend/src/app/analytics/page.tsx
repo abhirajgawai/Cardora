@@ -4,19 +4,18 @@ import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { getTransactions } from '@/features/transactions';
 import { getCards } from '@/features/cards';
-import { getInsights, Insight } from '@/features/insights';
 import { getStatements } from '@/features/statements';
 import { Transaction } from '@/features/transactions/types';
 import { CreditCard } from '@/features/cards/types';
 import { Statement } from '@/features/statements/types';
-import { extractErrorMessage, isAuthError } from '@/shared/lib/utils/errorHandler';
 import { formatCardDisplayName } from '@/shared/lib/utils/cardFormatter';
+import { formatCurrency, formatCurrencyCompact } from '@/shared/lib/utils/formatCurrency';
+import { CHART_COLORS, BRAND_COLORS } from '@/shared/lib/utils/colors';
 import Sidebar from '@/shared/components/layout/Sidebar';
 import Footer from '@/shared/components/layout/Footer';
 import TimeRangeSelector, { TimeRange } from '@/shared/components/common/TimeRangeSelector';
 import MonthYearPicker, { MonthYearValue } from '@/shared/components/common/MonthYearPicker';
 import { SearchableSelect } from '@/shared/components/ui/SearchableSelect';
-import InsightsList from '@/features/insights/components/InsightsList';
 import {
   Table,
   TableBody,
@@ -54,29 +53,6 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
-// Cardora V2 Refined Fintech Color Palette
-const FINTECH_COLORS = {
-  primary: '#4B6EF5',      // Modern Indigo Blue
-  indigo: '#4B6EF5',       // Alias for primary (for chart compatibility)
-  accent: '#00E0A1',       // Teal Mint
-  teal: '#00E0A1',         // Alias for accent (for chart compatibility)
-  navy: '#1E1B4B',         // Deep Navy-Purple
-  slate: '#64748B',        // Softer gray-blue
-  lightGray: '#E2E8F0',    // Subtle borders
-};
-
-const CHART_COLORS = [
-  FINTECH_COLORS.primary,   // Modern Indigo - Primary
-  FINTECH_COLORS.accent,    // Teal Mint - Accent
-  '#F59E0B',                // Amber - Warning
-  '#10B981',                // Emerald - Success
-  '#8B5CF6',                // Purple - Secondary
-  '#60A5FA',                // Sky Blue - Supplementary
-  FINTECH_COLORS.slate,     // Slate
-  '#FB923C',                // Coral
-  FINTECH_COLORS.navy,      // Navy
-  FINTECH_COLORS.lightGray, // Light Gray
-];
 
 export default function AnalyticsPage() {
   const router = useRouter();
@@ -84,7 +60,6 @@ export default function AnalyticsPage() {
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [cards, setCards] = useState<CreditCard[]>([]);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
-  const [insights, setInsights] = useState<Insight[]>([]);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   // Time range filter - will be overridden by most recent statement on initial load
@@ -104,16 +79,14 @@ export default function AnalyticsPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [transactionsData, cardsData, insightsData, statementsData] = await Promise.all([
+        const [transactionsData, cardsData, statementsData] = await Promise.all([
           getTransactions({ limit: 10000 }),
           getCards(),
-          getInsights(false).catch(() => ({ insights: [], count: 0 })),
           getStatements().catch(() => []),
         ]);
 
         setAllTransactions(Array.isArray(transactionsData) ? transactionsData : []);
         setCards(Array.isArray(cardsData) ? cardsData : []);
-        setInsights(insightsData?.insights || []);
 
         // Set default filter to most recent statement on initial load
         if (isInitialLoad && Array.isArray(statementsData) && statementsData.length > 0) {
@@ -122,17 +95,13 @@ export default function AnalyticsPage() {
             month: mostRecentStatement.statement_month,
             year: mostRecentStatement.statement_year
           });
-          console.log(`[Analytics] Defaulting to most recent statement: ${mostRecentStatement.statement_month}/${mostRecentStatement.statement_year}`);
         }
 
         // Mark initial load as complete
         setIsInitialLoad(false);
-      } catch (error) {
-        console.error('Analytics error:', extractErrorMessage(error));
-        if (isAuthError(error)) {
-          localStorage.removeItem('access_token');
-          router.push('/login');
-        }
+      } catch {
+        // Auth errors (401) are handled by the Axios interceptor.
+        // For other errors, fall through — the page renders with empty data.
       } finally {
         setLoading(false);
       }
@@ -140,30 +109,6 @@ export default function AnalyticsPage() {
 
     fetchData();
   }, [router, isInitialLoad]);
-
-  // Function to refresh insights after user actions
-  const refreshInsights = async () => {
-    try {
-      const insightsData = await getInsights(false);
-      setInsights(insightsData?.insights || []);
-    } catch (error) {
-      console.error('Failed to refresh insights:', error);
-    }
-  };
-
-  // Handle insight dismissal
-  const handleDismissInsight = async (id: string) => {
-    try {
-      // Optimistically remove from UI
-      setInsights(insights.filter(i => i.id !== id));
-      // You can call dismissInsight API here if you have one
-      // await dismissInsight(id);
-    } catch (error) {
-      console.error('Failed to dismiss insight:', error);
-      // Refresh on error to restore state
-      refreshInsights();
-    }
-  };
 
   // Handle time range change
   const handleTimeRangeChange = (newRange: TimeRange) => {
@@ -540,19 +485,6 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
-          {/* AI Insights Section */}
-          {insights.length > 0 && (
-            <div className="mb-6">
-              <div className="mb-4">
-                <h2 className="text-lg font-bold text-foreground mb-1">AI-Powered Insights</h2>
-                <p className="text-sm text-muted-foreground">
-                  Personalized spending insights generated by AI
-                </p>
-              </div>
-              <InsightsList insights={insights} onDismiss={handleDismissInsight} />
-            </div>
-          )}
-
           {/* Overview KPIs */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
             <div className="fintech-card card-accent-indigo p-5 animate-slide-in" style={{ animationDelay: "0.1s" }}>
@@ -565,7 +497,7 @@ export default function AnalyticsPage() {
               </div>
               <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Total Spending</h3>
               <p className="text-2xl font-bold text-foreground mb-1">
-                ${analytics.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {formatCurrency(analytics.total)}
               </p>
               <p className="text-xs text-muted-foreground">{analytics.count} transactions</p>
             </div>
@@ -580,7 +512,7 @@ export default function AnalyticsPage() {
               </div>
               <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Avg / Month</h3>
               <p className="text-2xl font-bold text-foreground mb-1">
-                ${analytics.avgPerMonth.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {formatCurrency(analytics.avgPerMonth)}
               </p>
               <p className="text-xs text-muted-foreground">Monthly average</p>
             </div>
@@ -595,7 +527,7 @@ export default function AnalyticsPage() {
               </div>
               <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Avg Transaction</h3>
               <p className="text-2xl font-bold text-foreground mb-1">
-                ${analytics.avgPerTransaction.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {formatCurrency(analytics.avgPerTransaction)}
               </p>
               <p className="text-xs text-muted-foreground">Per transaction</p>
             </div>
@@ -635,7 +567,7 @@ export default function AnalyticsPage() {
                   <div className="text-center">
                     <p className="text-sm font-medium text-muted-foreground mb-2">{cardComparisonData[0].name}</p>
                     <p className="text-3xl font-bold text-foreground mb-2">
-                      ${cardComparisonData[0].total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {formatCurrency(cardComparisonData[0].total)}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {cardComparisonData[0].count} transaction{cardComparisonData[0].count !== 1 ? 's' : ''}
@@ -655,9 +587,9 @@ export default function AnalyticsPage() {
                     <BarChart data={cardComparisonData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" opacity={0.3} />
                       <XAxis dataKey="name" tick={{ fill: '#64748B', fontSize: 11 }} stroke="#CBD5E1" />
-                      <YAxis tick={{ fill: '#64748B', fontSize: 11 }} stroke="#CBD5E1" tickFormatter={(value: number) => `$${value.toLocaleString()}`} />
-                      <Tooltip formatter={(value: number) => [`$${value.toFixed(2)}`, 'Total']} contentStyle={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '8px 12px' }} />
-                      <Bar dataKey="total" fill={FINTECH_COLORS.indigo} radius={[6, 6, 0, 0]} />
+                      <YAxis tick={{ fill: '#64748B', fontSize: 11 }} stroke="#CBD5E1" tickFormatter={(value: number) => formatCurrencyCompact(value)} />
+                      <Tooltip formatter={(value: number) => [formatCurrency(value), 'Total']} contentStyle={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '8px 12px' }} />
+                      <Bar dataKey="total" fill={BRAND_COLORS.primary} radius={[6, 6, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
@@ -677,9 +609,9 @@ export default function AnalyticsPage() {
                   <LineChart data={monthlyTrendsData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" opacity={0.3} />
                     <XAxis dataKey="month" tick={{ fill: '#64748B', fontSize: 11 }} stroke="#CBD5E1" />
-                    <YAxis tick={{ fill: '#64748B', fontSize: 11 }} stroke="#CBD5E1" tickFormatter={(value: number) => `$${value.toLocaleString()}`} />
-                    <Tooltip formatter={(value: number) => [`$${value.toFixed(2)}`, 'Total']} contentStyle={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '8px 12px' }} />
-                    <Line type="monotone" dataKey="total" stroke={FINTECH_COLORS.teal} strokeWidth={2.5} dot={{ fill: FINTECH_COLORS.teal, r: 4 }} activeDot={{ r: 6 }} />
+                    <YAxis tick={{ fill: '#64748B', fontSize: 11 }} stroke="#CBD5E1" tickFormatter={(value: number) => formatCurrencyCompact(value)} />
+                    <Tooltip formatter={(value: number) => [formatCurrency(value), 'Total']} contentStyle={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '8px 12px' }} />
+                    <Line type="monotone" dataKey="total" stroke={BRAND_COLORS.accent} strokeWidth={2.5} dot={{ fill: BRAND_COLORS.accent, r: 4 }} activeDot={{ r: 6 }} />
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
@@ -745,7 +677,7 @@ export default function AnalyticsPage() {
                         </div>
                         <div className="text-right">
                           <div className="font-bold text-base text-foreground">
-                            ${category.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {formatCurrency(category.value)}
                           </div>
                           <div className="text-xs text-muted-foreground mt-0.5">
                             {category.percentage}%
@@ -789,9 +721,9 @@ export default function AnalyticsPage() {
                   <BarChart data={dayOfWeekData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" opacity={0.3} />
                     <XAxis dataKey="day" tick={{ fill: '#64748B', fontSize: 11 }} stroke="#CBD5E1" />
-                    <YAxis tick={{ fill: '#64748B', fontSize: 11 }} stroke="#CBD5E1" tickFormatter={(value: number) => `$${value.toLocaleString()}`} />
-                    <Tooltip formatter={(value: number) => [`$${value.toFixed(2)}`, 'Total']} contentStyle={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '8px 12px' }} />
-                    <Bar dataKey="total" fill={FINTECH_COLORS.primary} radius={[6, 6, 0, 0]} />
+                    <YAxis tick={{ fill: '#64748B', fontSize: 11 }} stroke="#CBD5E1" tickFormatter={(value: number) => formatCurrencyCompact(value)} />
+                    <Tooltip formatter={(value: number) => [formatCurrency(value), 'Total']} contentStyle={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '8px 12px' }} />
+                    <Bar dataKey="total" fill={BRAND_COLORS.primary} radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -820,7 +752,7 @@ export default function AnalyticsPage() {
                         <span className="text-xs font-bold text-primary uppercase tracking-wider">Weekdays</span>
                       </div>
                       <p className="text-2xl font-bold text-foreground mb-1">
-                        ${weekdayWeekendData.weekday.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {formatCurrency(weekdayWeekendData.weekday.total)}
                       </p>
                       <p className="text-xs text-muted-foreground mb-2">
                         {weekdayWeekendData.weekday.count} transactions
@@ -828,7 +760,7 @@ export default function AnalyticsPage() {
                       <div className="pt-2 border-t border-primary/20">
                         <p className="text-xs text-muted-foreground">Avg per transaction</p>
                         <p className="text-sm font-semibold text-foreground">
-                          ${weekdayWeekendData.weekday.avgPerDay.toFixed(2)}
+                          {formatCurrency(weekdayWeekendData.weekday.avgPerDay)}
                         </p>
                       </div>
                     </div>
@@ -844,7 +776,7 @@ export default function AnalyticsPage() {
                         <span className="text-xs font-bold text-accent uppercase tracking-wider">Weekend</span>
                       </div>
                       <p className="text-2xl font-bold text-foreground mb-1">
-                        ${weekdayWeekendData.weekend.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {formatCurrency(weekdayWeekendData.weekend.total)}
                       </p>
                       <p className="text-xs text-muted-foreground mb-2">
                         {weekdayWeekendData.weekend.count} transactions
@@ -852,7 +784,7 @@ export default function AnalyticsPage() {
                       <div className="pt-2 border-t border-accent/20">
                         <p className="text-xs text-muted-foreground">Avg per transaction</p>
                         <p className="text-sm font-semibold text-foreground">
-                          ${weekdayWeekendData.weekend.avgPerDay.toFixed(2)}
+                          {formatCurrency(weekdayWeekendData.weekend.avgPerDay)}
                         </p>
                       </div>
                     </div>
@@ -875,7 +807,7 @@ export default function AnalyticsPage() {
                         </div>
                         <div className="text-right">
                           <p className="text-xl font-bold text-foreground">
-                            ${weekdayWeekendData.peakDay.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {formatCurrency(weekdayWeekendData.peakDay.amount)}
                           </p>
                           <p className="text-xs text-muted-foreground">total spent</p>
                         </div>
@@ -924,7 +856,7 @@ export default function AnalyticsPage() {
                           </div>
                         </TableCell>
                         <TableCell className="px-5 py-4 text-right text-sm font-bold text-foreground">
-                          ${merchant.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {formatCurrency(merchant.total)}
                         </TableCell>
                         <TableCell className="px-5 py-4 text-right text-sm text-muted-foreground">
                           <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-primary/10 text-primary font-medium">
@@ -932,7 +864,7 @@ export default function AnalyticsPage() {
                           </span>
                         </TableCell>
                         <TableCell className="px-5 py-4 text-right text-sm text-muted-foreground">
-                          ${merchant.avgTransaction.toFixed(2)}
+                          {formatCurrency(merchant.avgTransaction)}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -954,8 +886,8 @@ export default function AnalyticsPage() {
           <DialogHeader>
             <DialogTitle>{selectedCategory} Transactions</DialogTitle>
             <DialogDescription>
-              {categoryTransactions.length} transaction{categoryTransactions.length !== 1 ? 's' : ''} totaling $
-              {categoryTransactions.reduce((sum, t) => sum + Number(t.amount), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {categoryTransactions.length} transaction{categoryTransactions.length !== 1 ? 's' : ''} totaling{' '}
+              {formatCurrency(categoryTransactions.reduce((sum, t) => sum + Number(t.amount), 0))}
             </DialogDescription>
           </DialogHeader>
           <DialogBody>
@@ -1001,7 +933,7 @@ export default function AnalyticsPage() {
                           <span className="truncate block max-w-[170px]">{getCardName(transaction.card_id)}</span>
                         </TableCell>
                         <TableCell className="px-4 py-3 whitespace-nowrap text-right text-sm font-bold text-foreground">
-                          ${Number(transaction.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {formatCurrency(transaction.amount)}
                         </TableCell>
                       </TableRow>
                     ))}

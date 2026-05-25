@@ -9,7 +9,6 @@ Endpoints:
 - GET /transactions/{transaction_id} - Get transaction details
 - PATCH /transactions/{transaction_id} - Update transaction (category, etc.)
 
-Compare to .NET: Like TransactionsController
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -24,7 +23,6 @@ from app.features.transactions.schemas import TransactionResponse, TransactionUp
 from app.features.auth.jwt import get_current_user
 
 # ═══════════════════════════════════════════════════════════════════
-# ROUTER SETUP
 # ═══════════════════════════════════════════════════════════════════
 
 router = APIRouter(
@@ -34,7 +32,6 @@ router = APIRouter(
 
 
 # ═══════════════════════════════════════════════════════════════════
-# GET /transactions - List Transactions with Filters
 # ═══════════════════════════════════════════════════════════════════
 
 @router.get(
@@ -71,10 +68,8 @@ async def list_transactions(
     - Page info
     """
 
-    # Build query
     query = db.query(Transaction).filter(Transaction.user_id == current_user.id)
 
-    # Apply filters
     if month:
         query = query.filter(Transaction.statement_month == month)
 
@@ -87,10 +82,8 @@ async def list_transactions(
     if category_id:
         query = query.filter(Transaction.category_id == category_id)
 
-    # Get total count
     total = query.count()
 
-    # Apply pagination
     offset = (page - 1) * limit
     transactions = query.order_by(
         Transaction.transaction_date.desc()
@@ -105,7 +98,6 @@ async def list_transactions(
 
 
 # ═══════════════════════════════════════════════════════════════════
-# GET /transactions/{transaction_id} - Get Transaction Details
 # ═══════════════════════════════════════════════════════════════════
 
 @router.get(
@@ -137,7 +129,6 @@ async def get_transaction(
 
 
 # ═══════════════════════════════════════════════════════════════════
-# PATCH /transactions/{transaction_id} - Update Transaction
 # ═══════════════════════════════════════════════════════════════════
 
 @router.patch(
@@ -174,7 +165,6 @@ async def update_transaction(
             detail="Transaction not found"
         )
 
-    # Update only provided fields
     if trans_update.category_id is not None:
         transaction.category_id = trans_update.category_id
 
@@ -194,18 +184,14 @@ async def update_transaction(
 
 
 # ═══════════════════════════════════════════════════════════════════
-# USAGE EXAMPLES
 # ═══════════════════════════════════════════════════════════════════
 """
-# Example 1: List all transactions for October 2024
 GET /transactions?month=10&year=2024&page=1&limit=20
 Authorization: Bearer <token>
 
-# Example 2: List transactions for specific card and category
 GET /transactions?card_id=550e8400-e29b-41d4-a716-446655440000&category_id=660e8400-e29b-41d4-a716-446655440001
 Authorization: Bearer <token>
 
-# Example 3: Update transaction category
 PATCH /transactions/770e8400-e29b-41d4-a716-446655440002
 Authorization: Bearer <token>
 Content-Type: application/json

@@ -7,7 +7,6 @@ This service uses Google's Gemini AI to:
 3. Categorize transactions automatically
 4. Detect recurring payments
 
-Compare to .NET:
     // In .NET, you might use Azure OpenAI or similar:
     public class AiService
     {
@@ -35,20 +34,17 @@ from decimal import Decimal
 import google.generativeai as genai
 from PyPDF2 import PdfReader
 
-# Import category mapping
 from app.features.categories.models import Category
 from app.core.config import settings
 
 
 # ═══════════════════════════════════════════════════════════════════
-# GEMINI API CONFIGURATION
 # ═══════════════════════════════════════════════════════════════════
 
 def configure_gemini():
     """
     Configure Gemini AI with API key from environment
 
-    Compare to .NET:
         var client = new OpenAIClient(new ApiKeyCredential(
             Environment.GetEnvironmentVariable("OPENAI_API_KEY")
         ));
@@ -67,7 +63,6 @@ def configure_gemini():
 
 
 # ═══════════════════════════════════════════════════════════════════
-# PDF TEXT EXTRACTION
 # ═══════════════════════════════════════════════════════════════════
 
 def extract_text_from_pdf(pdf_path: str) -> str:
@@ -80,7 +75,6 @@ def extract_text_from_pdf(pdf_path: str) -> str:
     Returns:
         Extracted text content
 
-    Compare to .NET:
         using PdfSharp;
         var document = PdfReader.Open(pdfPath, PdfDocumentOpenMode.Import);
         var text = string.Join("", document.Pages.Select(p => p.ExtractText()));
@@ -100,7 +94,6 @@ def extract_text_from_pdf(pdf_path: str) -> str:
 
 
 # ═══════════════════════════════════════════════════════════════════
-# AI TRANSACTION EXTRACTION
 # ═══════════════════════════════════════════════════════════════════
 
 def extract_transactions_with_gemini(
@@ -143,16 +136,13 @@ def extract_transactions_with_gemini(
         }
     """
 
-    # Configure Gemini
     configure_gemini()
 
-    # Prepare category list for AI
     category_names = [cat.name for cat in categories]
     category_descriptions = "\n".join([
         f"- {cat.name}: {cat.icon}" for cat in categories
     ])
 
-    # Create AI prompt
     prompt = f"""
 You are an expert at analyzing credit card statements and extracting transaction data.
 
@@ -230,16 +220,13 @@ Statement text:
 """
 
     try:
-        # Use Gemini Pro Latest (modern replacement for deprecated gemini-pro)
         model = genai.GenerativeModel('gemini-pro-latest')
 
         print("[INFO] Sending request to Gemini AI...")
         response = model.generate_content(prompt)
 
-        # Parse AI response
         response_text = response.text.strip()
 
-        # Remove markdown code blocks if present
         if response_text.startswith("```json"):
             response_text = response_text[7:]
         if response_text.startswith("```"):
@@ -249,12 +236,10 @@ Statement text:
 
         response_text = response_text.strip()
 
-        # Parse JSON
         transactions = json.loads(response_text)
 
         print(f"[SUCCESS] Gemini extracted {len(transactions)} transactions")
 
-        # Calculate statistics
         stats = calculate_extraction_stats(transactions)
 
         return transactions, stats
@@ -270,7 +255,6 @@ Statement text:
 
 
 # ═══════════════════════════════════════════════════════════════════
-# STATISTICS CALCULATION
 # ═══════════════════════════════════════════════════════════════════
 
 def calculate_extraction_stats(transactions: List[Dict]) -> Dict:
@@ -295,7 +279,6 @@ def calculate_extraction_stats(transactions: List[Dict]) -> Dict:
     total_confidence = sum(t.get("confidence_score", 0.0) for t in transactions)
     avg_confidence = total_confidence / len(transactions) if transactions else 0.0
 
-    # Count categories
     categories_assigned = {}
     for t in transactions:
         cat_name = t.get("category_name", "Unknown")
@@ -310,7 +293,6 @@ def calculate_extraction_stats(transactions: List[Dict]) -> Dict:
 
 
 # ═══════════════════════════════════════════════════════════════════
-# CARD METADATA EXTRACTION (NEW!)
 # ═══════════════════════════════════════════════════════════════════
 
 def extract_card_metadata_from_pdf(pdf_text: str) -> Dict:
@@ -346,10 +328,8 @@ def extract_card_metadata_from_pdf(pdf_text: str) -> Dict:
         }
     """
 
-    # Configure Gemini
     configure_gemini()
 
-    # Create AI prompt for metadata extraction
     prompt = f"""
 You are an expert at analyzing credit card statements and extracting metadata.
 
@@ -367,21 +347,30 @@ Your task: Extract the following information from the statement:
 7. **Credit Limit**: Total credit limit (if available, otherwise null)
 
 **BALANCE & PAYMENT INFORMATION (CRITICAL FOR DEBT DETECTION):**
-8. **Statement Balance**: Total amount owed on this statement (also called "New Balance", "Amount Due", "Total Amount Due")
+8. **Statement Balance**: Total amount owed on this statement
+   - Also called: "New Balance", "Amount Due", "Total Amount Due", "Closing Balance", "Current Balance"
 9. **Minimum Payment Due**: Minimum payment required to avoid late fees
-10. **Previous Balance**: Balance carried over from previous statement (also called "Previous Outstanding Balance", "Last Month's Balance")
-11. **New Charges**: New purchases/charges this billing cycle (sum of all new transactions)
-12. **Payments/Credits**: Payments and credits received this cycle (negative value or separate field, may say "Payments Received", "Credits")
-13. **Interest Charged**: Interest charged this cycle (may be 0.00 if paid in full, also called "Finance Charges", "Interest/Finance Charges")
+   - Also called: "Minimum Amount Due", "Minimum Payment"
+10. **Previous Balance**: The balance carried forward from last statement's closing date. This is the unpaid balance BEFORE current cycle's payments are applied.
+   - Also called: "Opening Balance", "Previous Balance", "Balance Brought Forward", "Last Statement Balance"
+11. **New Charges**: New purchases/charges this billing cycle
+   - Also called: "Purchases & Advances", "New Purchases", "Transactions", "New Charges", "Retail Purchases"
+12. **Payments & Credits**: ⚠️ CRITICAL - Payments and credits made DURING this billing cycle. This is a POSITIVE number representing how much was paid.
+   - Also called: "Payments/Credits", "Payment Received", "Payments Made", "Credits", "Payments & Adjustments"
+   - Always extract as POSITIVE number (e.g., if you see "-849.48" or "849.48 CR", extract as 849.48)
+   - This field is essential to determine if user paid their bill
+13. **Interest Charged**: Interest charged this cycle (may be 0.00 if paid in full)
+   - Also called: "Interest Charges", "Finance Charges", "Interest & Charges"
 14. **Fees Charged**: Late fees, annual fees, over-limit fees, etc. (may be 0.00)
-15. **APR**: Annual Percentage Rate for purchases (e.g., 24.99 for 24.99%)
+   - Also called: "Fees & Charges", "Service Fees", "Other Charges"
+15. **APR**: Annual Percentage Rate for purchases (e.g., 27.90 for 27.90%)
 
 IMPORTANT RULES:
 - Extract ALL balance information - this is critical for detecting if user paid their bill
 - Be precise with dates - use YYYY-MM-DD format
 - If a field is not found, set it to null
 - For amounts, use decimal format (e.g., 15000.00)
-- For negative amounts (payments), use negative values (e.g., -500.00)
+- **CRITICAL**: For payments_credits field, ALWAYS use POSITIVE numbers (e.g., if statement shows "-500.00" or "500.00 CR", extract as 500.00)
 - Bank name should be clean (e.g., "CITI" not "Citibank N.A.")
 - Look for "Summary of Account" or "Account Summary" section for balances
 - Statement Balance = Previous Balance + New Charges - Payments + Interest + Fees
@@ -399,11 +388,45 @@ Return ONLY a JSON object in this EXACT format:
   "minimum_payment_due": 50.00,
   "previous_balance": 1800.00,
   "new_charges": 800.00,
-  "payments_credits": -300.00,
+  "payments_credits": 300.00,  // ALWAYS POSITIVE - this is the amount paid!
   "interest_charged": 24.00,
   "fees_charged": 0.00,
   "apr": 24.99
 }}
+
+**CRITICAL EXAMPLES - MULTI-BANK FORMATS:**
+
+Different banks use different formats. Here are examples:
+
+**Example 1 - CITIBANK:**
+PREVIOUS BALANCE - PAYMENTS & CREDITS + PURCHASES & ADVANCES + INTEREST CHARGES + FEES & CHARGES = CURRENT BALANCE
+     849.48       -        849.48        +       1,818.10        +       0.00       +      0.00      =    1,818.10
+
+Extract: previous_balance=849.48, payments_credits=849.48, new_charges=1818.10, statement_balance=1818.10
+
+**Example 2 - DBS/POSB:**
+Previous Balance: $1,500.00
+Payments/Credits: $1,500.00
+New Purchases: $2,300.00
+Interest: $0.00
+Fees: $0.00
+New Balance: $2,300.00
+
+Extract: previous_balance=1500.00, payments_credits=1500.00, new_charges=2300.00, statement_balance=2300.00
+
+**Example 3 - OCBC:**
+Opening Balance: $800.00
+Payment Received: $800.00
+Transactions: $1,200.00
+Finance Charges: $0.00
+Closing Balance: $1,200.00
+
+Extract: previous_balance=800.00, payments_credits=800.00, new_charges=1200.00, statement_balance=1200.00
+
+**KEY POINTS:**
+- Different banks use different labels (Payments/Credits, Payment Received, etc.) but the meaning is the same
+- Always extract payments_credits as a POSITIVE number regardless of how bank displays it
+- Look for the account summary/transaction summary section at the beginning of the statement
 
 Do NOT include any explanations, comments, or markdown. ONLY the JSON object.
 
@@ -412,16 +435,13 @@ Statement text (first 8000 characters to capture summary section):
 """
 
     try:
-        # Use Gemini Pro Latest (modern replacement for deprecated gemini-pro)
         model = genai.GenerativeModel('gemini-pro-latest')
 
         print("[INFO] Extracting card metadata with Gemini AI...")
         response = model.generate_content(prompt)
 
-        # Parse AI response
         response_text = response.text.strip()
 
-        # Remove markdown code blocks if present
         if response_text.startswith("```json"):
             response_text = response_text[7:]
         if response_text.startswith("```"):
@@ -431,7 +451,6 @@ Statement text (first 8000 characters to capture summary section):
 
         response_text = response_text.strip()
 
-        # Parse JSON
         metadata = json.loads(response_text)
 
         print(f"[SUCCESS] Extracted card metadata:")
@@ -453,7 +472,6 @@ Statement text (first 8000 characters to capture summary section):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# MAIN EXTRACTION FUNCTION
 # ═══════════════════════════════════════════════════════════════════
 
 def process_statement_pdf(
@@ -478,10 +496,8 @@ def process_statement_pdf(
         from app.core.gemini_service import process_statement_pdf
         from app.features.categories.models import Category
 
-        # Get categories from DB
         categories = db.query(Category).filter(Category.user_id == None).all()
 
-        # Process PDF
         transactions, stats = process_statement_pdf(
             pdf_path="uploads/statement.pdf",
             categories=categories,
@@ -497,17 +513,14 @@ def process_statement_pdf(
     print("PROCESSING PDF STATEMENT WITH GEMINI AI")
     print("=" * 70)
 
-    # Step 1: Extract text from PDF
     print(f"\n[1/3] Extracting text from PDF...")
     pdf_text = extract_text_from_pdf(pdf_path)
 
-    # Step 2: Use Gemini AI to extract transactions
     print(f"\n[2/3] Analyzing with Gemini AI...")
     transactions, stats = extract_transactions_with_gemini(
         pdf_text, categories, statement_month, statement_year
     )
 
-    # Step 3: Validate and return
     print(f"\n[3/3] Validation complete!")
     print(f"\nExtracted {stats['total_transactions']} transactions")
     print(f"Total amount: ${stats['total_amount']:.2f}")
@@ -524,7 +537,6 @@ def process_statement_pdf(
 
 
 # ═══════════════════════════════════════════════════════════════════
-# CATEGORY MATCHING HELPER
 # ═══════════════════════════════════════════════════════════════════
 
 def match_category_by_name(
@@ -548,12 +560,10 @@ def match_category_by_name(
     """
     category_name_lower = category_name.lower().strip()
 
-    # Exact match (case-insensitive)
     for cat in available_categories:
         if cat.name.lower() == category_name_lower:
             return cat
 
-    # Fuzzy match with common aliases
     aliases = {
         "food": "groceries",
         "grocery": "groceries",
@@ -582,14 +592,12 @@ def match_category_by_name(
         "pharmacy": "healthcare"
     }
 
-    # Try alias matching
     matched_name = aliases.get(category_name_lower)
     if matched_name:
         for cat in available_categories:
             if cat.name.lower() == matched_name:
                 return cat
 
-    # Return "Others" as fallback
     for cat in available_categories:
         if cat.name.lower() == "others" or cat.name.lower() == "other":
             return cat
@@ -598,20 +606,16 @@ def match_category_by_name(
 
 
 # ═══════════════════════════════════════════════════════════════════
-# USAGE EXAMPLES
 # ═══════════════════════════════════════════════════════════════════
 """
-# Example 1: Process a PDF statement
 from app.core.gemini_service import process_statement_pdf
 from app.core.database import SessionLocal
 from app.features.categories.models import Category
 
 db = SessionLocal()
 
-# Get system categories
 categories = db.query(Category).filter(Category.user_id == None).all()
 
-# Process PDF
 transactions, stats = process_statement_pdf(
     pdf_path="uploads/DBS_Visa_Oct2024.pdf",
     categories=categories,
@@ -619,9 +623,7 @@ transactions, stats = process_statement_pdf(
     statement_year=2024
 )
 
-# Save transactions to database
 for trans_data in transactions:
-    # Match category
     category = match_category_by_name(trans_data["category_name"], categories)
 
     transaction = Transaction(
