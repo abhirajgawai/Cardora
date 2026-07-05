@@ -70,3 +70,6 @@ scripts/
 # Generated / export files
 openapi.json
 nul
+
+# Local git worktrees for isolated feature work
+.worktrees/
