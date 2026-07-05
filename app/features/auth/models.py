@@ -125,9 +125,16 @@ class User(Base):
     - Like adding an index in SQL Server Management Studio
     """
 
+    google_id = Column(
+        String(255),
+        unique=True,
+        nullable=True,
+        index=True,
+    )
+
     hashed_password = Column(
         String(255),
-        nullable=False
+        nullable=True
     )
 
     """
