@@ -385,13 +385,11 @@ class Transaction(Base):
     )
     # Compare to .NET: public Category Category { get; set; }
 
-    # Relationship to Insights (Many-to-Many through InsightTransaction)
-    # "A transaction can be referenced by multiple insights"
-    insight_transactions = relationship(
-        "InsightTransaction",
-        back_populates="transaction"
-    )
-    # Compare to .NET: public List<InsightTransaction> InsightTransactions { get; set; }
+    # NOTE: A relationship to an "InsightTransaction" model previously lived here,
+    # but that model was never implemented anywhere in the codebase. The dangling
+    # string reference broke SQLAlchemy mapper configuration for ANY ORM query
+    # touching User/Transaction (mapper registry configuration is all-or-nothing),
+    # which blocked this feature's test suite. Removed until InsightTransaction exists.
 
     # ═══════════════════════════════════════════════════════════════
     # STRING REPRESENTATION
