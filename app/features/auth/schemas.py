@@ -64,6 +64,11 @@ class UserLogin(BaseModel):
     )
 
 
+class GoogleLoginRequest(BaseModel):
+    """Schema for Google Sign-In (input)."""
+    id_token: str = Field(..., description="Google ID token from the frontend Sign-In button")
+
+
 class UserUpdate(BaseModel):
     """Schema for updating user profile (input)."""
     full_name: Optional[str] = Field(None, max_length=255)

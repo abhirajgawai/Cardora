@@ -6,12 +6,15 @@ Compare to .NET: Like unit tests for an ExternalLoginProvider handler
 import sys
 import os
 import uuid
+import requests
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.core.database import SessionLocal
 from app.features.auth.models import User
 from app.features.auth.google_auth import get_or_create_google_user
+
+BASE_URL = "http://127.0.0.1:8000"
 
 
 def _fake_claims(email: str, sub: str, name: str = "Test User") -> dict:
@@ -102,12 +105,32 @@ def test_repeat_login_returns_same_user():
         db.close()
 
 
+def test_invalid_token_rejected():
+    print("\n" + "=" * 70)
+    print("TEST: garbage id_token is rejected with 401")
+    print("=" * 70)
+
+    response = requests.post(
+        f"{BASE_URL}/auth/google",
+        json={"id_token": "not-a-real-google-token"},
+    )
+
+    print(f"  Status code: {response.status_code}")
+    if response.status_code == 401:
+        print("  [OK] Invalid token correctly rejected")
+        return True
+    else:
+        print(f"  [ERROR] Expected 401, got {response.status_code}: {response.text}")
+        return False
+
+
 if __name__ == "__main__":
     try:
         results = [
             test_creates_new_user_for_unknown_google_account(),
             test_links_google_id_to_existing_email_account(),
             test_repeat_login_returns_same_user(),
+            test_invalid_token_rejected(),
         ]
         sys.exit(0 if all(results) else 1)
     except Exception as e:

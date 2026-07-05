@@ -13,10 +13,11 @@ from sqlalchemy.exc import IntegrityError
 from app.core.database import get_db
 from app.features.auth.models import User
 from app.features.auth.schemas import (
-    UserCreate, UserResponse, UserLogin, Token,
+    UserCreate, UserResponse, UserLogin, Token, GoogleLoginRequest,
     PasswordResetRequest, PasswordResetConfirm,
     PasswordResetResponse, PasswordResetSuccess
 )
+from app.features.auth.google_auth import verify_google_token, get_or_create_google_user
 from app.features.auth.password import hash_password, verify_password
 from app.features.auth.jwt import create_access_token, get_current_user
 from app.features.auth.password_reset import create_password_reset_token, verify_reset_token, clear_reset_token
@@ -119,6 +120,46 @@ async def login(
             detail="Invalid email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account is inactive"
+        )
+
+    access_token = create_access_token(
+        data={"sub": str(user.id), "email": user.email}
+    )
+
+    return Token(access_token=access_token, token_type="bearer")
+
+
+@auth_router.post(
+    "/google",
+    response_model=Token,
+    status_code=status.HTTP_200_OK,
+    summary="Sign in or register with Google"
+)
+async def google_login(
+    request: GoogleLoginRequest,
+    db: Session = Depends(get_db)
+):
+    """Verify a Google ID token and issue our own JWT for the matching user."""
+    try:
+        claims = verify_google_token(request.id_token)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Google token",
+        )
+
+    if not claims.get("email_verified", False):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Google account email not verified",
+        )
+
+    user = get_or_create_google_user(db, claims)
 
     if not user.is_active:
         raise HTTPException(
