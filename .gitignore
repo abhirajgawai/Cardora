@@ -17,7 +17,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+/lib/
 lib64/
 parts/
 sdist/
@@ -73,3 +73,10 @@ nul
 
 # Local git worktrees for isolated feature work
 .worktrees/
+
+# Design-sync build artifacts (regenerated; commit only .design-sync/ durable files)
+.ds-sync/
+ds-bundle/
+.design-sync/.cache/
+.design-sync/learnings/
+.design-sync/node_modules
