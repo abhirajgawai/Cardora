@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Manrope } from "next/font/google";
 import { ThemeProvider } from "@/shared/contexts/ThemeContext";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 import { Toaster } from "sonner";
 import "./globals.css";
 
@@ -35,6 +36,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${manrope.variable} antialiased`}
       >
+        <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!}>
         <ThemeProvider>
           {children}
           <Toaster
@@ -51,6 +53,7 @@ export default function RootLayout({
             }}
           />
         </ThemeProvider>
+        </GoogleOAuthProvider>
       </body>
     </html>
   );
