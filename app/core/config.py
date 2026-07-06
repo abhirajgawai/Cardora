@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
-    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_ID: str = ""  # empty = every Google token verification fails closed (audience mismatch) — set in .env for Google login to work
     PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = 60
 
     # Frontend URL — used in password-reset emails
