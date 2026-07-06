@@ -28,6 +28,19 @@ export const register = async (data: RegisterData): Promise<User> => {
   return response.data;
 };
 
+// Sign in or register with a Google ID token
+export const googleLogin = async (idToken: string): Promise<AuthTokens> => {
+  const response = await apiClient.post('/auth/google', {
+    id_token: idToken,
+  });
+
+  if (response.data.access_token) {
+    localStorage.setItem('access_token', response.data.access_token);
+  }
+
+  return response.data;
+};
+
 // Get current user
 export const getCurrentUser = async (): Promise<User> => {
   const response = await apiClient.get('/users/me');
