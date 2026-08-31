@@ -25,17 +25,40 @@ This service uses Google's Gemini AI to:
 Python Gemini SDK makes this simpler with built-in PDF support.
 """
 
+import logging
 import os
+import re
 import json
+import time
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime
 from decimal import Decimal
 
 import google.generativeai as genai
+from google.api_core.exceptions import ResourceExhausted
 from PyPDF2 import PdfReader
 
 from app.features.categories.models import Category
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
+
+
+def _generate_with_retry(model, prompt: str, max_retries: int = 3):
+    """Call model.generate_content, retrying on 429 rate-limit errors."""
+    for attempt in range(max_retries):
+        try:
+            return model.generate_content(prompt)
+        except ResourceExhausted as exc:
+            if attempt == max_retries - 1:
+                raise
+            match = re.search(r"retry in (\d+(?:\.\d+)?)s", str(exc))
+            wait = float(match.group(1)) + 2 if match else 65.0
+            logger.warning(
+                "Gemini rate limited (attempt %d/%d), waiting %.0fs",
+                attempt + 1, max_retries, wait,
+            )
+            time.sleep(wait)
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -220,10 +243,10 @@ Statement text:
 """
 
     try:
-        model = genai.GenerativeModel('gemini-pro-latest')
+        model = genai.GenerativeModel('gemini-3.5-flash')
 
         print("[INFO] Sending request to Gemini AI...")
-        response = model.generate_content(prompt)
+        response = _generate_with_retry(model, prompt)
 
         response_text = response.text.strip()
 
@@ -435,10 +458,10 @@ Statement text (first 8000 characters to capture summary section):
 """
 
     try:
-        model = genai.GenerativeModel('gemini-pro-latest')
+        model = genai.GenerativeModel('gemini-3.5-flash')
 
         print("[INFO] Extracting card metadata with Gemini AI...")
-        response = model.generate_content(prompt)
+        response = _generate_with_retry(model, prompt)
 
         response_text = response.text.strip()
 

@@ -1,0 +1,58 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e7]:
+      - generic [ref=e8]:
+        - heading "CARDORA" [level=1] [ref=e9]
+        - paragraph [ref=e10]: Smart way to manage your credit cards
+      - generic [ref=e11]:
+        - generic [ref=e12]:
+          - img [ref=e14]
+          - generic [ref=e16]:
+            - heading "AI-Powered PDF Extraction" [level=3] [ref=e17]
+            - paragraph [ref=e18]: Upload statements and let AI extract transactions automatically
+        - generic [ref=e19]:
+          - img [ref=e21]
+          - generic [ref=e23]:
+            - heading "Smart Analytics" [level=3] [ref=e24]
+            - paragraph [ref=e25]: Visualize spending patterns with beautiful charts and insights
+        - generic [ref=e26]:
+          - img [ref=e28]
+          - generic [ref=e30]:
+            - heading "Auto-Categorization" [level=3] [ref=e31]
+            - paragraph [ref=e32]: 93% accuracy in categorizing transactions automatically
+      - img [ref=e34]
+    - generic [ref=e38]:
+      - generic [ref=e39]:
+        - heading "Welcome back" [level=2] [ref=e40]
+        - paragraph [ref=e41]: Sign in to your account to continue
+      - generic [ref=e42]:
+        - generic [ref=e43]:
+          - generic [ref=e44]: Email address
+          - generic [ref=e45]:
+            - generic:
+              - img
+            - textbox "Email address" [ref=e46]:
+              - /placeholder: you@example.com
+        - generic [ref=e47]:
+          - generic [ref=e48]:
+            - generic [ref=e49]: Password
+            - link "Forgot password?" [ref=e50] [cursor=pointer]:
+              - /url: /forgot-password
+          - generic [ref=e51]:
+            - generic:
+              - img
+            - textbox "Password" [ref=e52]:
+              - /placeholder: ••••••••
+        - generic [ref=e53]:
+          - checkbox "Remember me for 30 days" [ref=e54]
+          - generic [ref=e55]: Remember me for 30 days
+        - button "Sign in" [ref=e56]
+      - generic [ref=e61]: Or continue with
+      - button "Sign in with Google" [ref=e62]:
+        - img [ref=e63]
+        - generic [ref=e68]: Sign in with Google
+      - paragraph [ref=e69]:
+        - text: Don't have an account?
+        - link "Sign up for free →" [ref=e70] [cursor=pointer]:
+          - /url: /register
+  - region "Notifications alt+T"

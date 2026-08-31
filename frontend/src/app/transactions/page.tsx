@@ -12,6 +12,7 @@ import { CreditCard } from '@/features/cards/types';
 import { formatCardDisplayName } from '@/shared/lib/utils/cardFormatter';
 import { formatCurrency } from '@/shared/lib/utils/formatCurrency';
 import Sidebar from '@/shared/components/layout/Sidebar';
+import MobileTopBar from '@/shared/components/layout/MobileTopBar';
 import Footer from '@/shared/components/layout/Footer';
 import { SearchableSelect } from '@/shared/components/ui/SearchableSelect';
 import MonthYearPicker, { MonthYearValue } from '@/shared/components/common/MonthYearPicker';
@@ -55,6 +56,7 @@ function TransactionsPageContent() {
   // Sort states
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -458,12 +460,13 @@ function TransactionsPageContent() {
   return (
     <div className="flex min-h-screen fintech-bg">
       {/* Sidebar */}
-      <Sidebar />
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <MobileTopBar onMenuClick={() => setSidebarOpen(true)} />
 
       {/* Main Content */}
-      <div className="flex-1 ml-64">
+      <div className="flex-1 lg:ml-64 pt-14 lg:pt-0">
         {/* Header */}
-        <header className="bg-card border-b border-border px-8 py-5">
+        <header className="bg-card border-b border-border px-4 sm:px-6 lg:px-8 py-3 sm:py-5">
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-3xl font-bold text-card-foreground mb-1">
@@ -473,7 +476,7 @@ function TransactionsPageContent() {
                 View and manage all your transactions
               </p>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="hidden sm:flex items-center space-x-4">
               {/* User Profile */}
               <div className="flex items-center space-x-3">
                 <div className="text-right">
@@ -491,7 +494,7 @@ function TransactionsPageContent() {
         </header>
 
         {/* Main Content */}
-        <main className="px-8 py-5">
+        <main className="px-4 sm:px-6 lg:px-8 py-4 sm:py-5">
           {/* Filters Section */}
           <div className="fintech-card p-5 mb-5 animate-slide-in">
             <div className="flex items-center justify-between mb-4">

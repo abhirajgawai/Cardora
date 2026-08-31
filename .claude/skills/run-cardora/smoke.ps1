@@ -69,30 +69,36 @@ Check "POST /auth/login with bad creds returns 401/422 (route exists)" {
     }
 }
 
-Check "GET /credit-cards returns 401 (protected route exists)" {
+Check "GET /credit-cards requires auth (401/403)" {
     try {
         Invoke-RestMethod "$BackendUrl/credit-cards" -TimeoutSec 5
         $false
     } catch {
-        $_.Exception.Response.StatusCode.value__ -eq 401
+        $resp = $_.Exception.Response -as [System.Net.HttpWebResponse]
+        if ($resp) { [int]$resp.StatusCode -in @(401, 403) }
+        else { $_.Exception.Message -match "401|403|Unauthorized|Forbidden" }
     }
 }
 
-Check "GET /transactions returns 401 (protected route exists)" {
+Check "GET /transactions requires auth (401/403)" {
     try {
         Invoke-RestMethod "$BackendUrl/transactions" -TimeoutSec 5
         $false
     } catch {
-        $_.Exception.Response.StatusCode.value__ -eq 401
+        $resp = $_.Exception.Response -as [System.Net.HttpWebResponse]
+        if ($resp) { [int]$resp.StatusCode -in @(401, 403) }
+        else { $_.Exception.Message -match "401|403|Unauthorized|Forbidden" }
     }
 }
 
-Check "GET /insights returns 401 (protected route exists)" {
+Check "GET /insights/payment-alerts requires auth (401/403)" {
     try {
-        Invoke-RestMethod "$BackendUrl/insights" -TimeoutSec 5
+        Invoke-RestMethod "$BackendUrl/insights/payment-alerts" -TimeoutSec 5
         $false
     } catch {
-        $_.Exception.Response.StatusCode.value__ -eq 401
+        $resp = $_.Exception.Response -as [System.Net.HttpWebResponse]
+        if ($resp) { [int]$resp.StatusCode -in @(401, 403) }
+        else { $_.Exception.Message -match "401|403|Unauthorized|Forbidden" }
     }
 }
 

@@ -44,7 +44,7 @@ export default function SettingsPage() {
     <div className="min-h-screen fintech-bg pb-20">
       {/* Header */}
       <div className="fintech-card rounded-none border-x-0 border-t-0">
-        <div className="max-w-7xl mx-auto px-6 py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
           <Link href="/dashboard" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-4">
             <ArrowLeft className="w-4 h-4" />
             Back to Dashboard
@@ -56,7 +56,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 mt-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-6 sm:mt-8">
         <div className="grid lg:grid-cols-12 gap-8">
           {/* Sidebar Navigation */}
           <div className="lg:col-span-3">

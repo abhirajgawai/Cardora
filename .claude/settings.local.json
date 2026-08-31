@@ -5,7 +5,7 @@
       "Bash(dir:*)",
       "Bash(powershell:*)",
       "Bash(python tests/test_password_reset.py:*)",
-      "Bash(python -c \"from app.models.user import User; print(''✓ User model imports successfully'')\")",
+      "Bash(python -c \"from app.models.user import User; print(''\u2713 User model imports successfully'')\")",
       "Bash(npm run dev:*)",
       "Bash(taskkill:*)",
       "Bash(netstat:*)",
@@ -70,9 +70,28 @@
       "Bash(Get-ChildItem -Path \"E:\\\\Cardora\\\\app\\\\features\\\\auth\" -Filter \"*.py\")",
       "Bash(Select-Object Name)",
       "Bash(Get-ChildItem -Path \"E:\\\\Cardora\\\\alembic\\\\versions\" -Filter \"*.py\")",
-      "Bash(Format-Table -HideTableHeaders)"
+      "Bash(Format-Table -HideTableHeaders)",
+      "PowerShell(Receive-Job *)"
     ],
     "deny": [],
     "ask": []
+  },
+  "env": {
+    "ANTHROPIC_BASE_URL": "http://127.0.0.1:8787",
+    "ENABLE_TOOL_SEARCH": "true"
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"C:/Users/Abhiraj Gautam Gavai/.local/bin/headroom.EXE\" wrap selfheal --marker headroom-wrap-selfheal",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
   }
 }

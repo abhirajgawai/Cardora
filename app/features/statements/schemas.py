@@ -135,6 +135,7 @@ class StatementResponse(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "id": "880e8400-e29b-41d4-a716-446655440003",

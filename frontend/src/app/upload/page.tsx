@@ -8,6 +8,7 @@ import { User } from '@/features/auth/types';
 import { StatementUploadResponse } from '@/features/statements/types';
 import { extractErrorMessage } from '@/shared/lib/utils/errorHandler';
 import Sidebar from '@/shared/components/layout/Sidebar';
+import MobileTopBar from '@/shared/components/layout/MobileTopBar';
 import Footer from '@/shared/components/layout/Footer';
 import UploadZone from '@/features/statements/components/UploadZone';
 import EnhancedUploadProgress from '@/features/statements/components/EnhancedUploadProgress';
@@ -24,6 +25,7 @@ export default function UploadPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadResult, setUploadResult] = useState<StatementUploadResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -116,12 +118,13 @@ export default function UploadPage() {
   return (
     <div className="flex min-h-screen fintech-bg">
       {/* Sidebar */}
-      <Sidebar />
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <MobileTopBar onMenuClick={() => setSidebarOpen(true)} />
 
-      {/* Main Content - offset by sidebar width (256px = w-64) */}
-      <div className="flex-1 ml-64">
+      {/* Main Content */}
+      <div className="flex-1 lg:ml-64 pt-14 lg:pt-0">
         {/* Header */}
-        <header className="bg-card border-b border-border px-8 py-5">
+        <header className="bg-card border-b border-border px-4 sm:px-6 lg:px-8 py-3 sm:py-5">
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-3xl font-bold text-foreground mb-1">Upload Statement</h1>
@@ -129,7 +132,7 @@ export default function UploadPage() {
                 Upload your PDF credit card statement and let AI extract all transactions
               </p>
             </div>
-            <div className="flex items-center space-x-3">
+            <div className="hidden sm:flex items-center space-x-3">
               <div className="text-right">
                 <p className="text-sm font-semibold text-foreground">{user?.full_name}</p>
                 <p className="text-xs text-muted-foreground">{user?.email}</p>
@@ -142,7 +145,7 @@ export default function UploadPage() {
         </header>
 
         {/* Upload Content */}
-        <main className="px-8 py-5">
+        <main className="px-4 sm:px-6 lg:px-8 py-4 sm:py-5">
           <div className="max-w-4xl mx-auto">
             {/* Hero Section */}
             <div className="text-center mb-10 animate-fade-in">

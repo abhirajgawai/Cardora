@@ -10,6 +10,7 @@ import { extractErrorMessage } from '@/shared/lib/utils/errorHandler';
 import { formatCardType, formatBankName, formatCardDisplayName } from '@/shared/lib/utils/cardFormatter';
 import { formatCurrency } from '@/shared/lib/utils/formatCurrency';
 import Sidebar from '@/shared/components/layout/Sidebar';
+import MobileTopBar from '@/shared/components/layout/MobileTopBar';
 import Footer from '@/shared/components/layout/Footer';
 import { SearchableSelect } from '@/shared/components/ui/SearchableSelect';
 
@@ -58,6 +59,7 @@ export default function CardsPage() {
     credit_limit: '',
     is_active: true,
   });
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -268,11 +270,12 @@ export default function CardsPage() {
 
   return (
     <div className="flex min-h-screen fintech-bg">
-      <Sidebar />
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <MobileTopBar onMenuClick={() => setSidebarOpen(true)} />
 
-      <div className="flex-1 ml-64">
+      <div className="flex-1 lg:ml-64 pt-14 lg:pt-0">
         {/* Header */}
-        <header className="bg-card border-b border-border px-8 py-5">
+        <header className="bg-card border-b border-border px-4 sm:px-6 lg:px-8 py-3 sm:py-5">
           <div>
             <h1 className="text-3xl font-bold text-foreground mb-1">My Cards</h1>
             <p className="text-muted-foreground">
@@ -281,7 +284,7 @@ export default function CardsPage() {
           </div>
         </header>
 
-        <main className="px-8 py-5">
+        <main className="px-4 sm:px-6 lg:px-8 py-4 sm:py-5">
           {/* Summary Stats */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
             <div className="fintech-card card-accent-indigo p-5 animate-slide-in" style={{ animationDelay: "0.1s" }}>

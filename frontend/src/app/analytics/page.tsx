@@ -1,21 +1,28 @@
-'use client';
+"use client";
 
-import { useEffect, useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
-import { getTransactions } from '@/features/transactions';
-import { getCards } from '@/features/cards';
-import { getStatements } from '@/features/statements';
-import { Transaction } from '@/features/transactions/types';
-import { CreditCard } from '@/features/cards/types';
-import { Statement } from '@/features/statements/types';
-import { formatCardDisplayName } from '@/shared/lib/utils/cardFormatter';
-import { formatCurrency, formatCurrencyCompact } from '@/shared/lib/utils/formatCurrency';
-import { CHART_COLORS, BRAND_COLORS } from '@/shared/lib/utils/colors';
-import Sidebar from '@/shared/components/layout/Sidebar';
-import Footer from '@/shared/components/layout/Footer';
-import TimeRangeSelector, { TimeRange } from '@/shared/components/common/TimeRangeSelector';
-import MonthYearPicker, { MonthYearValue } from '@/shared/components/common/MonthYearPicker';
-import { SearchableSelect } from '@/shared/components/ui/SearchableSelect';
+import { useEffect, useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { getTransactions } from "@/features/transactions";
+import { getCards } from "@/features/cards";
+import { getStatements } from "@/features/statements";
+import { Transaction } from "@/features/transactions/types";
+import { CreditCard } from "@/features/cards/types";
+import { formatCardDisplayName } from "@/shared/lib/utils/cardFormatter";
+import {
+  formatCurrency,
+  formatCurrencyCompact,
+} from "@/shared/lib/utils/formatCurrency";
+import { CHART_COLORS, BRAND_COLORS } from "@/shared/lib/utils/colors";
+import Sidebar from "@/shared/components/layout/Sidebar";
+import MobileTopBar from "@/shared/components/layout/MobileTopBar";
+import Footer from "@/shared/components/layout/Footer";
+import TimeRangeSelector, {
+  TimeRange,
+} from "@/shared/components/common/TimeRangeSelector";
+import MonthYearPicker, {
+  MonthYearValue,
+} from "@/shared/components/common/MonthYearPicker";
+import { SearchableSelect } from "@/shared/components/ui/SearchableSelect";
 import {
   Table,
   TableBody,
@@ -23,7 +30,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/shared/components/ui/table';
+} from "@/shared/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -32,15 +39,17 @@ import {
   DialogDescription,
   DialogBody,
   DialogFooter,
-} from '@/shared/components/ui/dialog';
+} from "@/shared/components/ui/dialog";
 import {
   filterTransactionsByTimeRange,
   getTimeRangeLabel,
   calculatePercentageChange,
   getPreviousPeriodDateRange,
   filterTransactionsByDateRange,
-} from '@/shared/lib/utils/dateFilters';
+} from "@/shared/lib/utils/dateFilters";
 import {
+  AreaChart,
+  Area,
   BarChart,
   Bar,
   LineChart,
@@ -51,8 +60,7 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-} from 'recharts';
-
+} from "recharts";
 
 export default function AnalyticsPage() {
   const router = useRouter();
@@ -63,10 +71,13 @@ export default function AnalyticsPage() {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   // Time range filter - will be overridden by most recent statement on initial load
-  const [selectedTimeRange, setSelectedTimeRange] = useState<TimeRange>('all_time');
+  const [selectedTimeRange, setSelectedTimeRange] =
+    useState<TimeRange>("all_time");
 
   // Specific month filter - will be set to most recent statement on initial load
-  const [specificMonth, setSpecificMonth] = useState<MonthYearValue | null>(null);
+  const [specificMonth, setSpecificMonth] = useState<MonthYearValue | null>(
+    null,
+  );
 
   // Category drill-down modal state
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -75,25 +86,34 @@ export default function AnalyticsPage() {
   // Category expand/collapse state
   const [showAllCategories, setShowAllCategories] = useState(false);
   const TOP_CATEGORIES_COUNT = 6;
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [transactionsData, cardsData, statementsData] = await Promise.all([
-          getTransactions({ limit: 10000 }),
-          getCards(),
-          getStatements().catch(() => []),
-        ]);
+        const [transactionsData, cardsData, statementsData] = await Promise.all(
+          [
+            getTransactions({ limit: 10000 }),
+            getCards(),
+            getStatements().catch(() => []),
+          ],
+        );
 
-        setAllTransactions(Array.isArray(transactionsData) ? transactionsData : []);
+        setAllTransactions(
+          Array.isArray(transactionsData) ? transactionsData : [],
+        );
         setCards(Array.isArray(cardsData) ? cardsData : []);
 
         // Set default filter to most recent statement on initial load
-        if (isInitialLoad && Array.isArray(statementsData) && statementsData.length > 0) {
+        if (
+          isInitialLoad &&
+          Array.isArray(statementsData) &&
+          statementsData.length > 0
+        ) {
           const mostRecentStatement = statementsData[0];
           setSpecificMonth({
             month: mostRecentStatement.statement_month,
-            year: mostRecentStatement.statement_year
+            year: mostRecentStatement.statement_year,
           });
         }
 
@@ -114,7 +134,7 @@ export default function AnalyticsPage() {
   const handleTimeRangeChange = (newRange: TimeRange) => {
     setSelectedTimeRange(newRange);
     // Clear specific month when time range is changed
-    if (newRange !== 'all_time') {
+    if (newRange !== "all_time") {
       setSpecificMonth(null);
     }
   };
@@ -124,7 +144,9 @@ export default function AnalyticsPage() {
     // If specific month is selected, use that instead of time range
     if (specificMonth) {
       return allTransactions.filter(
-        (t) => t.statement_month === specificMonth.month && t.statement_year === specificMonth.year
+        (t) =>
+          t.statement_month === specificMonth.month &&
+          t.statement_year === specificMonth.year,
       );
     }
     // Otherwise use time range filter
@@ -134,45 +156,64 @@ export default function AnalyticsPage() {
   // Filter transactions by selected card
   const filteredTransactions = useMemo(() => {
     if (!selectedCardId) return transactions;
-    return transactions.filter(t => t.card_id === selectedCardId);
+    return transactions.filter((t) => t.card_id === selectedCardId);
   }, [transactions, selectedCardId]);
 
   // Calculate analytics
   const analytics = useMemo(() => {
-    const total = filteredTransactions.reduce((sum, t) => sum + Number(t.amount), 0);
+    const total = filteredTransactions.reduce(
+      (sum, t) => sum + Number(t.amount),
+      0,
+    );
     const count = filteredTransactions.length;
     const avgPerTransaction = count > 0 ? total / count : 0;
 
     // Monthly average
-    const monthsSet = new Set(filteredTransactions.map(t =>
-      `${t.statement_year}-${String(t.statement_month).padStart(2, '0')}`
-    ));
+    const monthsSet = new Set(
+      filteredTransactions.map(
+        (t) =>
+          `${t.statement_year}-${String(t.statement_month).padStart(2, "0")}`,
+      ),
+    );
     const avgPerMonth = monthsSet.size > 0 ? total / monthsSet.size : 0;
 
     // Most used card
     const cardCounts = new Map<string, number>();
-    transactions.forEach(t => {
+    transactions.forEach((t) => {
       if (t.card_id) {
         cardCounts.set(t.card_id, (cardCounts.get(t.card_id) || 0) + 1);
       }
     });
-    const mostUsedCardId = Array.from(cardCounts.entries())
-      .sort((a, b) => b[1] - a[1])[0]?.[0];
-    const mostUsedCard = cards.find(c => c.id === mostUsedCardId);
+    const mostUsedCardId = Array.from(cardCounts.entries()).sort(
+      (a, b) => b[1] - a[1],
+    )[0]?.[0];
+    const mostUsedCard = cards.find((c) => c.id === mostUsedCardId);
 
     return { total, count, avgPerTransaction, avgPerMonth, mostUsedCard };
   }, [filteredTransactions, transactions, cards]);
 
   // Card comparison data
   const cardComparisonData = useMemo(() => {
-    const cardMap = new Map<string, { name: string; total: number; count: number }>();
+    const cardMap = new Map<
+      string,
+      { name: string; total: number; count: number }
+    >();
 
-    transactions.forEach(t => {
+    transactions.forEach((t) => {
       if (t.card_id) {
-        const card = cards.find(c => c.id === t.card_id);
+        const card = cards.find((c) => c.id === t.card_id);
         if (card) {
-          const formattedName = formatCardDisplayName(card.card_name, card.bank_name, card.card_type, card.last_four_digits);
-          const existing = cardMap.get(t.card_id) || { name: formattedName, total: 0, count: 0 };
+          const formattedName = formatCardDisplayName(
+            card.card_name,
+            card.bank_name,
+            card.card_type,
+            card.last_four_digits,
+          );
+          const existing = cardMap.get(t.card_id) || {
+            name: formattedName,
+            total: 0,
+            count: 0,
+          };
           existing.total += Number(t.amount);
           existing.count += 1;
           cardMap.set(t.card_id, existing);
@@ -180,24 +221,26 @@ export default function AnalyticsPage() {
       }
     });
 
-    return Array.from(cardMap.values())
-      .sort((a, b) => b.total - a.total);
+    return Array.from(cardMap.values()).sort((a, b) => b.total - a.total);
   }, [transactions, cards]);
 
   // Monthly trends
   const monthlyTrendsData = useMemo(() => {
     const monthMap = new Map<string, number>();
 
-    filteredTransactions.forEach(t => {
+    filteredTransactions.forEach((t) => {
       // Use statement_month and statement_year instead of transaction_date
-      const month = `${t.statement_year}-${String(t.statement_month).padStart(2, '0')}`;
+      const month = `${t.statement_year}-${String(t.statement_month).padStart(2, "0")}`;
       monthMap.set(month, (monthMap.get(month) || 0) + Number(t.amount));
     });
 
     return Array.from(monthMap.entries())
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([month, total]) => ({
-        month: new Date(month + '-01').toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+        month: new Date(month + "-01").toLocaleDateString("en-US", {
+          month: "short",
+          year: "2-digit",
+        }),
         total: Math.round(total * 100) / 100,
       }));
   }, [filteredTransactions]);
@@ -205,45 +248,48 @@ export default function AnalyticsPage() {
   // Category icon mapping
   const getCategoryIcon = (categoryName: string): string => {
     const iconMap: Record<string, string> = {
-      'Groceries': '🛒',
-      'Flights & Travel': '✈️',
-      'Transport': '🚗',
-      'Dining': '🍽️',
-      'Shopping': '🛍️',
-      'Bills & Utilities': '📄',
-      'Entertainment': '🎮',
-      'Healthcare': '⚕️',
-      'Clothing & Apparel': '👕',
-      'Fitness & Wellness': '💪',
-      'Online Shopping': '🖥️',
-      'Home & Garden': '🏡',
-      'Education': '📚',
-      'Pets': '🐾',
-      'Travel': '🧳',
-      'Gas': '⛽',
-      'Restaurants': '🍔',
-      'Coffee': '☕',
-      'Subscriptions': '📱',
-      'Insurance': '🛡️',
-      'Others': '📦',
-      'Uncategorized': '❓',
+      Groceries: "🛒",
+      "Flights & Travel": "✈️",
+      Transport: "🚗",
+      Dining: "🍽️",
+      Shopping: "🛍️",
+      "Bills & Utilities": "📄",
+      Entertainment: "🎮",
+      Healthcare: "⚕️",
+      "Clothing & Apparel": "👕",
+      "Fitness & Wellness": "💪",
+      "Online Shopping": "🖥️",
+      "Home & Garden": "🏡",
+      Education: "📚",
+      Pets: "🐾",
+      Travel: "🧳",
+      Gas: "⛽",
+      Restaurants: "🍔",
+      Coffee: "☕",
+      Subscriptions: "📱",
+      Insurance: "🛡️",
+      Others: "📦",
+      Uncategorized: "❓",
     };
-    return iconMap[categoryName] || '📦';
+    return iconMap[categoryName] || "📦";
   };
 
   // Full category breakdown with transaction counts
   const categoryData = useMemo(() => {
     const catMap = new Map<string, { value: number; count: number }>();
 
-    filteredTransactions.forEach(t => {
-      const category = t.category?.name || 'Uncategorized';
+    filteredTransactions.forEach((t) => {
+      const category = t.category?.name || "Uncategorized";
       const existing = catMap.get(category) || { value: 0, count: 0 };
       existing.value += Number(t.amount);
       existing.count += 1;
       catMap.set(category, existing);
     });
 
-    const total = Array.from(catMap.values()).reduce((sum, val) => sum + val.value, 0);
+    const total = Array.from(catMap.values()).reduce(
+      (sum, val) => sum + val.value,
+      0,
+    );
 
     return Array.from(catMap.entries())
       .sort((a, b) => b[1].value - a[1].value)
@@ -259,15 +305,25 @@ export default function AnalyticsPage() {
 
   // Top merchants
   const topMerchants = useMemo(() => {
-    const merchantMap = new Map<string, { total: number; count: number; categories: Map<string, number> }>();
+    const merchantMap = new Map<
+      string,
+      { total: number; count: number; categories: Map<string, number> }
+    >();
 
-    filteredTransactions.forEach(t => {
-      const merchant = t.merchant_name || t.description || 'Unknown';
-      const category = t.category?.name || 'Uncategorized';
-      const existing = merchantMap.get(merchant) || { total: 0, count: 0, categories: new Map() };
+    filteredTransactions.forEach((t) => {
+      const merchant = t.merchant_name || t.description || "Unknown";
+      const category = t.category?.name || "Uncategorized";
+      const existing = merchantMap.get(merchant) || {
+        total: 0,
+        count: 0,
+        categories: new Map(),
+      };
       existing.total += Number(t.amount);
       existing.count += 1;
-      existing.categories.set(category, (existing.categories.get(category) || 0) + 1);
+      existing.categories.set(
+        category,
+        (existing.categories.get(category) || 0) + 1,
+      );
       merchantMap.set(merchant, existing);
     });
 
@@ -276,8 +332,10 @@ export default function AnalyticsPage() {
       .slice(0, 10)
       .map(([name, data]) => {
         // Find most common category for this merchant
-        const mostCommonCategory = Array.from(data.categories.entries())
-          .sort((a, b) => b[1] - a[1])[0]?.[0] || 'Uncategorized';
+        const mostCommonCategory =
+          Array.from(data.categories.entries()).sort(
+            (a, b) => b[1] - a[1],
+          )[0]?.[0] || "Uncategorized";
 
         return {
           name,
@@ -292,15 +350,15 @@ export default function AnalyticsPage() {
 
   // Day of week analysis
   const dayOfWeekData = useMemo(() => {
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const dayMap = new Map(days.map(d => [d, 0]));
+    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const dayMap = new Map(days.map((d) => [d, 0]));
 
-    filteredTransactions.forEach(t => {
+    filteredTransactions.forEach((t) => {
       const day = days[new Date(t.transaction_date).getDay()];
       dayMap.set(day, (dayMap.get(day) || 0) + Number(t.amount));
     });
 
-    return days.map(day => ({
+    return days.map((day) => ({
       day,
       total: Math.round((dayMap.get(day) || 0) * 100) / 100,
     }));
@@ -313,9 +371,17 @@ export default function AnalyticsPage() {
     let weekdayCount = 0;
     let weekendCount = 0;
     const dayTotals = new Map<string, number>();
-    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const days = [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ];
 
-    filteredTransactions.forEach(t => {
+    filteredTransactions.forEach((t) => {
       const date = new Date(t.transaction_date);
       const dayOfWeek = date.getDay();
       const amount = Number(t.amount);
@@ -335,21 +401,30 @@ export default function AnalyticsPage() {
     });
 
     // Find most expensive day
-    const peakDay = Array.from(dayTotals.entries())
-      .sort((a, b) => b[1] - a[1])[0];
+    const peakDay = Array.from(dayTotals.entries()).sort(
+      (a, b) => b[1] - a[1],
+    )[0];
 
     return {
       weekday: {
         total: Math.round(weekdayTotal * 100) / 100,
         count: weekdayCount,
-        avgPerDay: weekdayCount > 0 ? Math.round((weekdayTotal / weekdayCount) * 100) / 100 : 0,
+        avgPerDay:
+          weekdayCount > 0
+            ? Math.round((weekdayTotal / weekdayCount) * 100) / 100
+            : 0,
       },
       weekend: {
         total: Math.round(weekendTotal * 100) / 100,
         count: weekendCount,
-        avgPerDay: weekendCount > 0 ? Math.round((weekendTotal / weekendCount) * 100) / 100 : 0,
+        avgPerDay:
+          weekendCount > 0
+            ? Math.round((weekendTotal / weekendCount) * 100) / 100
+            : 0,
       },
-      peakDay: peakDay ? { day: peakDay[0], amount: Math.round(peakDay[1] * 100) / 100 } : null,
+      peakDay: peakDay
+        ? { day: peakDay[0], amount: Math.round(peakDay[1] * 100) / 100 }
+        : null,
       totalTransactions: weekdayCount + weekendCount,
     };
   }, [filteredTransactions]);
@@ -358,8 +433,12 @@ export default function AnalyticsPage() {
   const categoryTransactions = useMemo(() => {
     if (!selectedCategory) return [];
     return filteredTransactions
-      .filter(t => (t.category?.name || 'Uncategorized') === selectedCategory)
-      .sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime());
+      .filter((t) => (t.category?.name || "Uncategorized") === selectedCategory)
+      .sort(
+        (a, b) =>
+          new Date(b.transaction_date).getTime() -
+          new Date(a.transaction_date).getTime(),
+      );
   }, [filteredTransactions, selectedCategory]);
 
   // Handler for clicking on a pie chart segment
@@ -371,8 +450,13 @@ export default function AnalyticsPage() {
   // Get card name by ID (helper function for modal)
   const getCardName = (cardId: string): string => {
     const card = cards.find((c) => c.id === cardId);
-    if (!card) return 'Unknown Card';
-    return formatCardDisplayName(card.card_name, card.bank_name, card.card_type, card.last_four_digits);
+    if (!card) return "Unknown Card";
+    return formatCardDisplayName(
+      card.card_name,
+      card.bank_name,
+      card.card_type,
+      card.last_four_digits,
+    );
   };
 
   if (loading) {
@@ -388,163 +472,232 @@ export default function AnalyticsPage() {
 
   return (
     <div className="flex min-h-screen fintech-bg">
-      <Sidebar />
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <MobileTopBar onMenuClick={() => setSidebarOpen(true)} />
 
-      <div className="flex-1 ml-64">
+      <div className="flex-1 lg:ml-64 pt-14 lg:pt-0">
         {/* Header */}
-        <header className="bg-card border-b border-border px-8 py-5">
-          <div className="flex justify-between items-center">
+        <header className="bg-card border-b border-border px-4 sm:px-6 lg:px-8 py-3 sm:py-5">
+          <div className="flex items-center justify-between gap-3">
             <div>
               <h1 className="text-2xl font-bold text-foreground mb-0.5">
-                Analytics Dashboard
+                Analytics
               </h1>
-              <p className="text-sm text-muted-foreground">
-                Deep insights into your spending patterns
-              </p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="text-sm text-muted-foreground">
+                  Deep insights into your spending
+                </p>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                  {specificMonth
+                    ? new Date(
+                        specificMonth.year,
+                        specificMonth.month - 1,
+                      ).toLocaleDateString("en-US", {
+                        month: "long",
+                        year: "numeric",
+                      })
+                    : getTimeRangeLabel(selectedTimeRange)}
+                </span>
+              </div>
             </div>
-            <TimeRangeSelector value={selectedTimeRange} onChange={handleTimeRangeChange} />
           </div>
         </header>
 
-        <main className="px-8 py-5">
-          {/* Time Range Indicator */}
-          <div className="mb-4 flex items-center space-x-2 text-sm text-muted-foreground">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <span>
-              Analyzing data from{' '}
-              <strong className="text-foreground">
-                {specificMonth
-                  ? `${new Date(specificMonth.year, specificMonth.month - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
-                  : getTimeRangeLabel(selectedTimeRange)
-                }
-              </strong>
-            </span>
-          </div>
-
-          {/* Filters */}
-          <div className="fintech-card p-6 mb-6 animate-slide-in">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-foreground">Filters</h3>
+        <main className="px-4 sm:px-6 lg:px-8 py-4 sm:py-5">
+          {/* Filter Bar */}
+          <div className="fintech-card p-4 mb-5 animate-slide-in">
+            <div className="flex flex-wrap items-end gap-4">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1.5">
+                  Time Range
+                </p>
+                <TimeRangeSelector
+                  value={selectedTimeRange}
+                  onChange={handleTimeRangeChange}
+                />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1.5">
+                  Specific Month
+                </p>
+                <MonthYearPicker
+                  value={specificMonth}
+                  onChange={(value) => {
+                    setSpecificMonth(value);
+                    if (value) setSelectedTimeRange("all_time");
+                  }}
+                />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1.5">
+                  Card
+                </p>
+                <SearchableSelect
+                  options={[
+                    { value: "", label: "All Cards" },
+                    ...cards.map((card) => ({
+                      value: card.id,
+                      label: formatCardDisplayName(
+                        card.card_name,
+                        card.bank_name,
+                        card.card_type,
+                        card.last_four_digits,
+                      ),
+                    })),
+                  ]}
+                  value={selectedCardId || ""}
+                  onChange={(value) => setSelectedCardId(value || null)}
+                  placeholder="All Cards"
+                  searchPlaceholder="Search cards..."
+                  emptyMessage="No card found."
+                />
+              </div>
               {(specificMonth || selectedCardId) && (
                 <button
                   onClick={() => {
                     setSpecificMonth(null);
                     setSelectedCardId(null);
                   }}
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  className="px-3 py-2 text-sm text-muted-foreground hover:text-foreground border border-border rounded-lg hover:bg-muted/50 transition-colors"
                 >
-                  Clear all
+                  Clear filters
                 </button>
               )}
-            </div>
-            <div className="flex flex-wrap items-center gap-4">
-              {/* Specific Month Filter */}
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-medium text-muted-foreground">
-                  Specific Month
-                </label>
-                <MonthYearPicker
-                  value={specificMonth}
-                  onChange={(value) => {
-                    setSpecificMonth(value);
-                    if (value) {
-                      // Clear time range when specific month is selected
-                      setSelectedTimeRange('all_time');
-                    }
-                  }}
-                />
-              </div>
-
-              {/* Card Filter */}
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-medium text-muted-foreground">
-                  Filter by Card
-                </label>
-                <SearchableSelect
-                  options={[
-                    { value: '', label: 'All Cards' },
-                    ...cards.map(card => ({
-                      value: card.id,
-                      label: formatCardDisplayName(card.card_name, card.bank_name, card.card_type, card.last_four_digits)
-                    }))
-                  ]}
-                  value={selectedCardId || ''}
-                  onChange={(value) => setSelectedCardId(value || null)}
-                  placeholder="Select a card..."
-                  searchPlaceholder="Search cards..."
-                  emptyMessage="No card found."
-                />
-              </div>
             </div>
           </div>
 
           {/* Overview KPIs */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
-            <div className="fintech-card card-accent-indigo p-5 animate-slide-in" style={{ animationDelay: "0.1s" }}>
+            <div
+              className="fintech-card card-accent-indigo p-5 animate-slide-in"
+              style={{ animationDelay: "0.1s" }}
+            >
               <div className="flex items-center justify-between mb-3">
                 <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <svg
+                    className="w-5 h-5 text-primary"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
                   </svg>
                 </div>
               </div>
-              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Total Spending</h3>
+              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
+                Total Spending
+              </h3>
               <p className="text-2xl font-bold text-foreground mb-1">
                 {formatCurrency(analytics.total)}
               </p>
-              <p className="text-xs text-muted-foreground">{analytics.count} transactions</p>
+              <p className="text-xs text-muted-foreground">
+                {analytics.count} transactions
+              </p>
             </div>
 
-            <div className="fintech-card card-accent-teal p-5 animate-slide-in" style={{ animationDelay: "0.2s" }}>
+            <div
+              className="fintech-card card-accent-teal p-5 animate-slide-in"
+              style={{ animationDelay: "0.2s" }}
+            >
               <div className="flex items-center justify-between mb-3">
                 <div className="w-11 h-11 rounded-xl bg-accent/10 flex items-center justify-center">
-                  <svg className="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  <svg
+                    className="w-5 h-5 text-accent"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
                   </svg>
                 </div>
               </div>
-              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Avg / Month</h3>
+              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
+                Avg / Month
+              </h3>
               <p className="text-2xl font-bold text-foreground mb-1">
                 {formatCurrency(analytics.avgPerMonth)}
               </p>
               <p className="text-xs text-muted-foreground">Monthly average</p>
             </div>
 
-            <div className="fintech-card card-accent-amber p-5 animate-slide-in" style={{ animationDelay: "0.3s" }}>
+            <div
+              className="fintech-card card-accent-amber p-5 animate-slide-in"
+              style={{ animationDelay: "0.3s" }}
+            >
               <div className="flex items-center justify-between mb-3">
                 <div className="w-11 h-11 rounded-xl bg-secondary/10 flex items-center justify-center">
-                  <svg className="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                  <svg
+                    className="w-5 h-5 text-secondary"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                    />
                   </svg>
                 </div>
               </div>
-              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Avg Transaction</h3>
+              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
+                Avg Transaction
+              </h3>
               <p className="text-2xl font-bold text-foreground mb-1">
                 {formatCurrency(analytics.avgPerTransaction)}
               </p>
               <p className="text-xs text-muted-foreground">Per transaction</p>
             </div>
 
-            <div className="fintech-card card-accent-emerald p-5 animate-slide-in" style={{ animationDelay: "0.4s" }}>
+            <div
+              className="fintech-card card-accent-emerald p-5 animate-slide-in"
+              style={{ animationDelay: "0.4s" }}
+            >
               <div className="flex items-center justify-between mb-3">
                 <div className="w-11 h-11 rounded-xl gradient-indigo-purple flex items-center justify-center">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                  <svg
+                    className="w-5 h-5 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                    />
                   </svg>
                 </div>
               </div>
-              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Most Used Card</h3>
+              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
+                Most Used Card
+              </h3>
               <p className="text-lg font-bold text-foreground mb-1 truncate">
-                {analytics.mostUsedCard ? formatCardDisplayName(analytics.mostUsedCard.card_name, analytics.mostUsedCard.bank_name, analytics.mostUsedCard.card_type, analytics.mostUsedCard.last_four_digits) : 'N/A'}
+                {analytics.mostUsedCard
+                  ? formatCardDisplayName(
+                      analytics.mostUsedCard.card_name,
+                      analytics.mostUsedCard.bank_name,
+                      analytics.mostUsedCard.card_type,
+                      analytics.mostUsedCard.last_four_digits,
+                    )
+                  : "N/A"}
               </p>
-              <p className="text-xs text-muted-foreground">Based on transaction count</p>
+              <p className="text-xs text-muted-foreground">
+                Based on transaction count
+              </p>
             </div>
           </div>
 
@@ -553,79 +706,206 @@ export default function AnalyticsPage() {
             {/* Card Comparison - Smart Layout */}
             {cardComparisonData.length === 1 ? (
               /* Single Card - Show as enhanced KPI */
-              <div className="fintech-card chart-card p-5 animate-slide-in" style={{ animationDelay: "0.5s" }}>
+              <div
+                className="fintech-card chart-card p-5 animate-slide-in"
+                style={{ animationDelay: "0.5s" }}
+              >
                 <div className="mb-4">
-                  <h3 className="text-base font-bold text-foreground mb-0.5">Card Activity</h3>
-                  <p className="text-xs text-muted-foreground">Your spending overview</p>
+                  <h3 className="text-base font-bold text-foreground mb-0.5">
+                    Card Activity
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Your spending overview
+                  </p>
                 </div>
                 <div className="h-[280px] flex flex-col items-center justify-center">
                   <div className="w-20 h-20 rounded-full gradient-indigo-purple flex items-center justify-center mb-4">
-                    <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                    <svg
+                      className="w-10 h-10 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                      />
                     </svg>
                   </div>
                   <div className="text-center">
-                    <p className="text-sm font-medium text-muted-foreground mb-2">{cardComparisonData[0].name}</p>
+                    <p className="text-sm font-medium text-muted-foreground mb-2">
+                      {cardComparisonData[0].name}
+                    </p>
                     <p className="text-3xl font-bold text-foreground mb-2">
                       {formatCurrency(cardComparisonData[0].total)}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {cardComparisonData[0].count} transaction{cardComparisonData[0].count !== 1 ? 's' : ''}
+                      {cardComparisonData[0].count} transaction
+                      {cardComparisonData[0].count !== 1 ? "s" : ""}
                     </p>
                   </div>
                 </div>
               </div>
             ) : (
               /* Multiple Cards - Show comparison chart */
-              <div className="fintech-card chart-card p-5 animate-slide-in" style={{ animationDelay: "0.5s" }}>
+              <div
+                className="fintech-card chart-card p-5 animate-slide-in"
+                style={{ animationDelay: "0.5s" }}
+              >
                 <div className="mb-4">
-                  <h3 className="text-base font-bold text-foreground mb-0.5">Card Comparison</h3>
-                  <p className="text-xs text-muted-foreground">Total spending by card</p>
+                  <h3 className="text-base font-bold text-foreground mb-0.5">
+                    Card Comparison
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Total spending by card
+                  </p>
                 </div>
                 {cardComparisonData.length > 0 ? (
                   <ResponsiveContainer width="100%" height={280}>
                     <BarChart data={cardComparisonData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" opacity={0.3} />
-                      <XAxis dataKey="name" tick={{ fill: '#64748B', fontSize: 11 }} stroke="#CBD5E1" />
-                      <YAxis tick={{ fill: '#64748B', fontSize: 11 }} stroke="#CBD5E1" tickFormatter={(value: number) => formatCurrencyCompact(value)} />
-                      <Tooltip formatter={(value: number) => [formatCurrency(value), 'Total']} contentStyle={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '8px 12px' }} />
-                      <Bar dataKey="total" fill={BRAND_COLORS.primary} radius={[6, 6, 0, 0]} />
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="#E2E8F0"
+                        opacity={0.3}
+                      />
+                      <XAxis
+                        dataKey="name"
+                        tick={{ fill: "#64748B", fontSize: 11 }}
+                        stroke="#CBD5E1"
+                      />
+                      <YAxis
+                        tick={{ fill: "#64748B", fontSize: 11 }}
+                        stroke="#CBD5E1"
+                        tickFormatter={(value: number) =>
+                          formatCurrencyCompact(value)
+                        }
+                      />
+                      <Tooltip
+                        formatter={(value: number) => [
+                          formatCurrency(value),
+                          "Total",
+                        ]}
+                        contentStyle={{
+                          backgroundColor: "#FFFFFF",
+                          border: "1px solid #E2E8F0",
+                          borderRadius: "8px",
+                          padding: "8px 12px",
+                        }}
+                      />
+                      <Bar
+                        dataKey="total"
+                        fill={BRAND_COLORS.primary}
+                        radius={[6, 6, 0, 0]}
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="h-[280px] flex items-center justify-center text-muted-foreground">No card data</div>
+                  <div className="h-[280px] flex items-center justify-center text-muted-foreground">
+                    No card data
+                  </div>
                 )}
               </div>
             )}
 
             {/* Monthly Trends */}
-            <div className="fintech-card chart-card p-5 animate-slide-in" style={{ animationDelay: "0.6s" }}>
+            <div
+              className="fintech-card chart-card p-5 animate-slide-in"
+              style={{ animationDelay: "0.6s" }}
+            >
               <div className="mb-4">
-                <h3 className="text-base font-bold text-foreground mb-0.5">Monthly Trends</h3>
-                <p className="text-xs text-muted-foreground">Spending over time</p>
+                <h3 className="text-base font-bold text-foreground mb-0.5">
+                  Monthly Trends
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Spending over time
+                </p>
               </div>
               {monthlyTrendsData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={280}>
-                  <LineChart data={monthlyTrendsData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" opacity={0.3} />
-                    <XAxis dataKey="month" tick={{ fill: '#64748B', fontSize: 11 }} stroke="#CBD5E1" />
-                    <YAxis tick={{ fill: '#64748B', fontSize: 11 }} stroke="#CBD5E1" tickFormatter={(value: number) => formatCurrencyCompact(value)} />
-                    <Tooltip formatter={(value: number) => [formatCurrency(value), 'Total']} contentStyle={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '8px 12px' }} />
-                    <Line type="monotone" dataKey="total" stroke={BRAND_COLORS.accent} strokeWidth={2.5} dot={{ fill: BRAND_COLORS.accent, r: 4 }} activeDot={{ r: 6 }} />
-                  </LineChart>
+                  <AreaChart data={monthlyTrendsData}>
+                    <defs>
+                      <linearGradient
+                        id="trendGradient"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor={BRAND_COLORS.accent}
+                          stopOpacity={0.25}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor={BRAND_COLORS.accent}
+                          stopOpacity={0}
+                        />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="#E2E8F0"
+                      opacity={0.3}
+                    />
+                    <XAxis
+                      dataKey="month"
+                      tick={{ fill: "#64748B", fontSize: 11 }}
+                      stroke="#CBD5E1"
+                    />
+                    <YAxis
+                      tick={{ fill: "#64748B", fontSize: 11 }}
+                      stroke="#CBD5E1"
+                      tickFormatter={(value: number) =>
+                        formatCurrencyCompact(value)
+                      }
+                    />
+                    <Tooltip
+                      formatter={(value: number) => [
+                        formatCurrency(value),
+                        "Spending",
+                      ]}
+                      contentStyle={{
+                        backgroundColor: "#FFFFFF",
+                        border: "1px solid #E2E8F0",
+                        borderRadius: "8px",
+                        padding: "8px 12px",
+                      }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="total"
+                      stroke={BRAND_COLORS.accent}
+                      strokeWidth={2.5}
+                      fill="url(#trendGradient)"
+                      dot={{ fill: BRAND_COLORS.accent, r: 4 }}
+                      activeDot={{ r: 6 }}
+                    />
+                  </AreaChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-[280px] flex items-center justify-center text-muted-foreground">No trend data</div>
+                <div className="h-[280px] flex items-center justify-center text-muted-foreground">
+                  No trend data
+                </div>
               )}
             </div>
           </div>
 
           {/* Category Breakdown - Full Width */}
-          <div className="fintech-card chart-card p-6 mb-6 animate-slide-in" style={{ animationDelay: "0.7s" }}>
-            <div className="flex items-center justify-between mb-6">
+          <div
+            className="fintech-card chart-card p-6 mb-6 animate-slide-in"
+            style={{ animationDelay: "0.7s" }}
+          >
+            <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-base font-bold text-foreground mb-0.5">Spending by Category</h3>
-                <p className="text-xs text-muted-foreground">Click on any category to view detailed transactions</p>
+                <h3 className="text-base font-bold text-foreground mb-0.5">
+                  Spending by Category
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Click on any category to view detailed transactions
+                </p>
               </div>
               {categoryData.length > TOP_CATEGORIES_COUNT && (
                 <button
@@ -635,24 +915,63 @@ export default function AnalyticsPage() {
                   {showAllCategories ? (
                     <>
                       Show Less
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 15l7-7 7 7"
+                        />
                       </svg>
                     </>
                   ) : (
                     <>
                       Show All ({categoryData.length})
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
                       </svg>
                     </>
                   )}
                 </button>
               )}
             </div>
+            {/* Proportional overview bar */}
+            {categoryData.length > 0 && (
+              <div className="h-3 rounded-full overflow-hidden flex mb-5 gap-px">
+                {categoryData.map((cat) => (
+                  <div
+                    key={cat.name}
+                    title={`${cat.name}: ${cat.percentage}%`}
+                    style={{
+                      width: `${cat.percentage}%`,
+                      backgroundColor: cat.color,
+                    }}
+                    className="transition-all duration-500 first:rounded-l-full last:rounded-r-full"
+                  />
+                ))}
+              </div>
+            )}
             {categoryData.length > 0 ? (
               <div className="space-y-3">
-                {(showAllCategories ? categoryData : categoryData.slice(0, TOP_CATEGORIES_COUNT)).map((category, index) => (
+                {(showAllCategories
+                  ? categoryData
+                  : categoryData.slice(0, TOP_CATEGORIES_COUNT)
+                ).map((category, index) => (
                   <div key={category.name}>
                     <button
                       onClick={() => handleCategoryClick(category.name)}
@@ -671,7 +990,8 @@ export default function AnalyticsPage() {
                               {category.name}
                             </div>
                             <div className="text-xs text-muted-foreground mt-0.5">
-                              {category.count} transaction{category.count !== 1 ? 's' : ''}
+                              {category.count} transaction
+                              {category.count !== 1 ? "s" : ""}
                             </div>
                           </div>
                         </div>
@@ -703,39 +1023,85 @@ export default function AnalyticsPage() {
                 ))}
               </div>
             ) : (
-              <div className="py-10 flex items-center justify-center text-muted-foreground">No category data</div>
+              <div className="py-10 flex items-center justify-center text-muted-foreground">
+                No category data
+              </div>
             )}
           </div>
 
           {/* Charts Row 2 */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
-
             {/* Day of Week */}
-            <div className="fintech-card chart-card p-5 animate-slide-in" style={{ animationDelay: "0.8s" }}>
+            <div
+              className="fintech-card chart-card p-5 animate-slide-in"
+              style={{ animationDelay: "0.8s" }}
+            >
               <div className="mb-4">
-                <h3 className="text-base font-bold text-foreground mb-0.5">Day of Week Analysis</h3>
-                <p className="text-xs text-muted-foreground">When do you spend most?</p>
+                <h3 className="text-base font-bold text-foreground mb-0.5">
+                  Day of Week Analysis
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  When do you spend most?
+                </p>
               </div>
               {dayOfWeekData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={280}>
                   <BarChart data={dayOfWeekData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" opacity={0.3} />
-                    <XAxis dataKey="day" tick={{ fill: '#64748B', fontSize: 11 }} stroke="#CBD5E1" />
-                    <YAxis tick={{ fill: '#64748B', fontSize: 11 }} stroke="#CBD5E1" tickFormatter={(value: number) => formatCurrencyCompact(value)} />
-                    <Tooltip formatter={(value: number) => [formatCurrency(value), 'Total']} contentStyle={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '8px 12px' }} />
-                    <Bar dataKey="total" fill={BRAND_COLORS.primary} radius={[6, 6, 0, 0]} />
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="#E2E8F0"
+                      opacity={0.3}
+                    />
+                    <XAxis
+                      dataKey="day"
+                      tick={{ fill: "#64748B", fontSize: 11 }}
+                      stroke="#CBD5E1"
+                    />
+                    <YAxis
+                      tick={{ fill: "#64748B", fontSize: 11 }}
+                      stroke="#CBD5E1"
+                      tickFormatter={(value: number) =>
+                        formatCurrencyCompact(value)
+                      }
+                    />
+                    <Tooltip
+                      formatter={(value: number) => [
+                        formatCurrency(value),
+                        "Total",
+                      ]}
+                      contentStyle={{
+                        backgroundColor: "#FFFFFF",
+                        border: "1px solid #E2E8F0",
+                        borderRadius: "8px",
+                        padding: "8px 12px",
+                      }}
+                    />
+                    <Bar
+                      dataKey="total"
+                      fill={BRAND_COLORS.primary}
+                      radius={[6, 6, 0, 0]}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-[280px] flex items-center justify-center text-muted-foreground">No day data</div>
+                <div className="h-[280px] flex items-center justify-center text-muted-foreground">
+                  No day data
+                </div>
               )}
             </div>
 
             {/* Weekday vs Weekend Comparison */}
-            <div className="fintech-card chart-card p-5 animate-slide-in" style={{ animationDelay: "0.9s" }}>
+            <div
+              className="fintech-card chart-card p-5 animate-slide-in"
+              style={{ animationDelay: "0.9s" }}
+            >
               <div className="mb-4">
-                <h3 className="text-base font-bold text-foreground mb-0.5">Weekday vs Weekend</h3>
-                <p className="text-xs text-muted-foreground">Spending pattern comparison</p>
+                <h3 className="text-base font-bold text-foreground mb-0.5">
+                  Weekday vs Weekend
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Spending pattern comparison
+                </p>
               </div>
               {weekdayWeekendData.totalTransactions > 0 ? (
                 <div className="h-[280px] flex flex-col justify-between">
@@ -745,11 +1111,23 @@ export default function AnalyticsPage() {
                     <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl p-4 border border-primary/20">
                       <div className="flex items-center gap-2 mb-3">
                         <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
-                          <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          <svg
+                            className="w-4 h-4 text-primary"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                            />
                           </svg>
                         </div>
-                        <span className="text-xs font-bold text-primary uppercase tracking-wider">Weekdays</span>
+                        <span className="text-xs font-bold text-primary uppercase tracking-wider">
+                          Weekdays
+                        </span>
                       </div>
                       <p className="text-2xl font-bold text-foreground mb-1">
                         {formatCurrency(weekdayWeekendData.weekday.total)}
@@ -758,7 +1136,9 @@ export default function AnalyticsPage() {
                         {weekdayWeekendData.weekday.count} transactions
                       </p>
                       <div className="pt-2 border-t border-primary/20">
-                        <p className="text-xs text-muted-foreground">Avg per transaction</p>
+                        <p className="text-xs text-muted-foreground">
+                          Avg per transaction
+                        </p>
                         <p className="text-sm font-semibold text-foreground">
                           {formatCurrency(weekdayWeekendData.weekday.avgPerDay)}
                         </p>
@@ -769,11 +1149,23 @@ export default function AnalyticsPage() {
                     <div className="bg-gradient-to-br from-accent/10 to-accent/5 rounded-xl p-4 border border-accent/20">
                       <div className="flex items-center gap-2 mb-3">
                         <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center">
-                          <svg className="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          <svg
+                            className="w-4 h-4 text-accent"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
                           </svg>
                         </div>
-                        <span className="text-xs font-bold text-accent uppercase tracking-wider">Weekend</span>
+                        <span className="text-xs font-bold text-accent uppercase tracking-wider">
+                          Weekend
+                        </span>
                       </div>
                       <p className="text-2xl font-bold text-foreground mb-1">
                         {formatCurrency(weekdayWeekendData.weekend.total)}
@@ -782,7 +1174,9 @@ export default function AnalyticsPage() {
                         {weekdayWeekendData.weekend.count} transactions
                       </p>
                       <div className="pt-2 border-t border-accent/20">
-                        <p className="text-xs text-muted-foreground">Avg per transaction</p>
+                        <p className="text-xs text-muted-foreground">
+                          Avg per transaction
+                        </p>
                         <p className="text-sm font-semibold text-foreground">
                           {formatCurrency(weekdayWeekendData.weekend.avgPerDay)}
                         </p>
@@ -796,63 +1190,109 @@ export default function AnalyticsPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center">
-                            <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            <svg
+                              className="w-5 h-5 text-amber-600"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M13 10V3L4 14h7v7l9-11h-7z"
+                              />
                             </svg>
                           </div>
                           <div>
-                            <p className="text-xs font-medium text-muted-foreground mb-0.5">Most Expensive Day</p>
-                            <p className="text-sm font-bold text-foreground">{weekdayWeekendData.peakDay.day}</p>
+                            <p className="text-xs font-medium text-muted-foreground mb-0.5">
+                              Most Expensive Day
+                            </p>
+                            <p className="text-sm font-bold text-foreground">
+                              {weekdayWeekendData.peakDay.day}
+                            </p>
                           </div>
                         </div>
                         <div className="text-right">
                           <p className="text-xl font-bold text-foreground">
                             {formatCurrency(weekdayWeekendData.peakDay.amount)}
                           </p>
-                          <p className="text-xs text-muted-foreground">total spent</p>
+                          <p className="text-xs text-muted-foreground">
+                            total spent
+                          </p>
                         </div>
                       </div>
                     </div>
                   )}
                 </div>
               ) : (
-                <div className="h-[280px] flex items-center justify-center text-muted-foreground">No data available</div>
+                <div className="h-[280px] flex items-center justify-center text-muted-foreground">
+                  No data available
+                </div>
               )}
             </div>
           </div>
 
           {/* Top Merchants Table */}
-          <div className="fintech-card overflow-hidden animate-slide-in" style={{ animationDelay: "1.0s" }}>
+          <div
+            className="fintech-card overflow-hidden animate-slide-in"
+            style={{ animationDelay: "1.0s" }}
+          >
             <div className="px-5 py-4 border-b border-border">
-              <h3 className="text-base font-bold text-foreground">Top Merchants</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Your most frequented places</p>
+              <h3 className="text-base font-bold text-foreground">
+                Top Merchants
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Your most frequented places
+              </p>
             </div>
             <div className="overflow-x-auto">
               {topMerchants.length > 0 ? (
                 <Table>
                   <TableHeader className="bg-muted/20">
                     <TableRow className="hover:bg-muted/20">
-                      <TableHead className="px-5 py-3.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider w-16">#</TableHead>
-                      <TableHead className="px-5 py-3.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Merchant</TableHead>
-                      <TableHead className="px-5 py-3.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Category</TableHead>
-                      <TableHead className="px-5 py-3.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-right">Total Spent</TableHead>
-                      <TableHead className="px-5 py-3.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-right">Transactions</TableHead>
-                      <TableHead className="px-5 py-3.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-right">Avg/Transaction</TableHead>
+                      <TableHead className="px-5 py-3.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider w-16">
+                        #
+                      </TableHead>
+                      <TableHead className="px-5 py-3.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                        Merchant
+                      </TableHead>
+                      <TableHead className="px-5 py-3.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                        Category
+                      </TableHead>
+                      <TableHead className="px-5 py-3.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-right">
+                        Total Spent
+                      </TableHead>
+                      <TableHead className="px-5 py-3.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-right">
+                        Transactions
+                      </TableHead>
+                      <TableHead className="px-5 py-3.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-right">
+                        Avg/Transaction
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {topMerchants.map((merchant, index) => (
-                      <TableRow key={index} className="hover:bg-muted/10 transition-all duration-200">
+                      <TableRow
+                        key={index}
+                        className="hover:bg-muted/10 transition-all duration-200"
+                      >
                         <TableCell className="px-5 py-4 text-sm font-bold text-primary">
                           <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10">
                             {index + 1}
                           </div>
                         </TableCell>
-                        <TableCell className="px-5 py-4 text-sm font-semibold text-foreground">{merchant.name}</TableCell>
+                        <TableCell className="px-5 py-4 text-sm font-semibold text-foreground">
+                          {merchant.name}
+                        </TableCell>
                         <TableCell className="px-5 py-4 text-sm">
                           <div className="flex items-center gap-2">
-                            <span className="text-lg">{merchant.categoryIcon}</span>
-                            <span className="text-muted-foreground">{merchant.category}</span>
+                            <span className="text-lg">
+                              {merchant.categoryIcon}
+                            </span>
+                            <span className="text-muted-foreground">
+                              {merchant.category}
+                            </span>
                           </div>
                         </TableCell>
                         <TableCell className="px-5 py-4 text-right text-sm font-bold text-foreground">
@@ -871,7 +1311,9 @@ export default function AnalyticsPage() {
                   </TableBody>
                 </Table>
               ) : (
-                <div className="px-5 py-10 text-center text-muted-foreground text-sm">No merchant data available</div>
+                <div className="px-5 py-10 text-center text-muted-foreground text-sm">
+                  No merchant data available
+                </div>
               )}
             </div>
           </div>
@@ -886,8 +1328,14 @@ export default function AnalyticsPage() {
           <DialogHeader>
             <DialogTitle>{selectedCategory} Transactions</DialogTitle>
             <DialogDescription>
-              {categoryTransactions.length} transaction{categoryTransactions.length !== 1 ? 's' : ''} totaling{' '}
-              {formatCurrency(categoryTransactions.reduce((sum, t) => sum + Number(t.amount), 0))}
+              {categoryTransactions.length} transaction
+              {categoryTransactions.length !== 1 ? "s" : ""} totaling{" "}
+              {formatCurrency(
+                categoryTransactions.reduce(
+                  (sum, t) => sum + Number(t.amount),
+                  0,
+                ),
+              )}
             </DialogDescription>
           </DialogHeader>
           <DialogBody>
@@ -915,22 +1363,33 @@ export default function AnalyticsPage() {
                   </TableHeader>
                   <TableBody>
                     {categoryTransactions.map((transaction) => (
-                      <TableRow key={transaction.id} className="hover:bg-muted/10 transition-all duration-200">
+                      <TableRow
+                        key={transaction.id}
+                        className="hover:bg-muted/10 transition-all duration-200"
+                      >
                         <TableCell className="px-4 py-3 whitespace-nowrap text-xs text-muted-foreground">
-                          {new Date(transaction.transaction_date).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
+                          {new Date(
+                            transaction.transaction_date,
+                          ).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
                           })}
                         </TableCell>
                         <TableCell className="px-4 py-3 text-sm">
-                          <div className="font-semibold text-foreground truncate max-w-[200px]">{transaction.description}</div>
+                          <div className="font-semibold text-foreground truncate max-w-[200px]">
+                            {transaction.description}
+                          </div>
                         </TableCell>
                         <TableCell className="px-4 py-3 text-xs text-muted-foreground">
-                          <span className="truncate block max-w-[130px]">{transaction.merchant_name || '-'}</span>
+                          <span className="truncate block max-w-[130px]">
+                            {transaction.merchant_name || "-"}
+                          </span>
                         </TableCell>
                         <TableCell className="px-4 py-3 whitespace-nowrap text-xs text-muted-foreground">
-                          <span className="truncate block max-w-[170px]">{getCardName(transaction.card_id)}</span>
+                          <span className="truncate block max-w-[170px]">
+                            {getCardName(transaction.card_id)}
+                          </span>
                         </TableCell>
                         <TableCell className="px-4 py-3 whitespace-nowrap text-right text-sm font-bold text-foreground">
                           {formatCurrency(transaction.amount)}

@@ -233,6 +233,7 @@ def create_payment_alert(
 
     alert = PaymentAlert(
         user_id=statement.user_id,
+        alert_type=payment_behavior.payment_status,
         title=title,
         description=full_description,
         due_date=statement.due_date,

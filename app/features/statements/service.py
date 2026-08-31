@@ -281,6 +281,7 @@ def process_upload(
 
     # 2 — save temp file
     temp_path = save_temp_file(user_id, original_filename, contents)
+    statement = None
 
     try:
         # 3 — extract text
@@ -364,4 +365,12 @@ def process_upload(
         # clean up temp file if still present
         if temp_path and os.path.exists(temp_path):
             os.remove(temp_path)
+        # roll back the statement record so a retry is not blocked by the duplicate check
+        if statement is not None:
+            try:
+                db.delete(statement)
+                db.commit()
+            except Exception:
+                db.rollback()
+                logger.exception("Failed to clean up statement record after upload failure")
         raise

@@ -1,0 +1,34 @@
+{
+  "pkg": "cardora",
+  "globalName": "CardoraDS",
+  "projectId": "742beb0d-84b9-4c6d-9c54-fddfd7fdeab2",
+  "shape": "package",
+  "tsconfig": "./tsconfig.json",
+  "cssEntry": "./src/shared/ds-styles.css",
+  "runtimeFontPrefixes": ["Manrope", "Geist", "Geist Mono"],
+  "provider": {
+    "component": "ThemeProvider"
+  },
+  "componentSrcMap": {
+    "Button": "src/shared/components/ui/button.tsx",
+    "Calendar": "src/shared/components/ui/calendar.tsx",
+    "Command": "src/shared/components/ui/command.tsx",
+    "Dialog": "src/shared/components/ui/dialog.tsx",
+    "Popover": "src/shared/components/ui/popover.tsx",
+    "Progress": "src/shared/components/ui/progress.tsx",
+    "SearchableSelect": "src/shared/components/ui/SearchableSelect.tsx",
+    "Select": "src/shared/components/ui/select.tsx",
+    "Table": "src/shared/components/ui/table.tsx",
+    "MonthYearPicker": "src/shared/components/common/MonthYearPicker.tsx",
+    "TimeRangeSelector": "src/shared/components/common/TimeRangeSelector.tsx",
+    "ThemeToggle": "src/shared/components/common/ThemeToggle.tsx",
+    "ThemeProvider": null,
+    "Sidebar": null,
+    "Footer": null,
+    "MobileTopBar": null
+  },
+  "overrides": {
+    "Dialog": { "cardMode": "single", "viewport": { "width": 560, "height": 400 } },
+    "Popover": { "cardMode": "single", "viewport": { "width": 420, "height": 340 } }
+  }
+}

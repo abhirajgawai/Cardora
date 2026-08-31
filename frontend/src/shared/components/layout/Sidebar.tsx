@@ -13,7 +13,12 @@ interface NavItem {
   icon: React.ReactNode;
 }
 
-export default function Sidebar() {
+interface SidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -101,7 +106,19 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="w-64 gradient-navy-indigo text-sidebar-foreground flex flex-col h-screen fixed left-0 top-0 border-r border-sidebar-border">
+    <>
+      {/* Mobile backdrop */}
+      <div
+        className={`fixed inset-0 bg-black/50 z-30 lg:hidden transition-opacity duration-300 ${
+          isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      <aside className={`w-64 gradient-navy-indigo text-sidebar-foreground flex flex-col h-screen fixed left-0 top-0 border-r border-sidebar-border z-40 transition-transform duration-300 ease-in-out ${
+        isOpen ? 'translate-x-0' : '-translate-x-full'
+      } lg:translate-x-0`}>
       {/* Logo Section */}
       <div className="px-6 py-8 border-b border-sidebar-border">
         <div className="flex items-center justify-between">
@@ -125,6 +142,7 @@ export default function Sidebar() {
             <Link
               key={item.name}
               href={item.href}
+              onClick={onClose}
               className={`
                 flex items-center space-x-3 px-4 py-3 rounded-xl font-medium transition-all duration-200
                 ${
@@ -178,6 +196,7 @@ export default function Sidebar() {
           <span>{isLoggingOut ? "Logging out..." : "Logout"}</span>
         </button>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }
