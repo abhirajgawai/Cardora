@@ -7,7 +7,7 @@ Consolidated schemas for:
 - Password reset
 """
 
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
+from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator
 from uuid import UUID
 from datetime import datetime
 from typing import Optional
@@ -22,6 +22,13 @@ class UserCreate(BaseModel):
     password: str = Field(..., min_length=8, max_length=100, description="User's password")
     full_name: Optional[str] = Field(None, max_length=255, description="User's full name")
     timezone: str = Field(default="Asia/Singapore", max_length=50, description="User's timezone")
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        if not any(c.isalpha() for c in v) or not any(c.isdigit() for c in v):
+            raise ValueError("Password must contain at least one letter and one digit")
+        return v
 
     model_config = ConfigDict(
         json_schema_extra={
