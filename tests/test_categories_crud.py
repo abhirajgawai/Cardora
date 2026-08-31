@@ -22,6 +22,8 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.schema import CreateTable, CreateIndex
 from sqlalchemy.orm import sessionmaker
 
+from datetime import date
+
 from app.core.config import settings
 
 TEST_SCHEMA = os.environ.get("CARDORA_TEST_SCHEMA", "dev")
@@ -91,6 +93,8 @@ from app.main import app  # noqa: E402
 from app.core.database import get_db  # noqa: E402
 from app.features.auth.models import User  # noqa: E402
 from app.features.categories.models import Category  # noqa: E402
+from app.features.cards.models import CreditCard  # noqa: E402
+from app.features.transactions.models import Transaction  # noqa: E402
 from app.features.auth.jwt import create_access_token  # noqa: E402
 
 
@@ -173,6 +177,33 @@ def make_custom_category(db_session, user: User, name=None) -> Category:
     db_session.add(cat)
     db_session.flush()
     return cat
+
+
+def make_card(db_session, user: User) -> CreditCard:
+    card = CreditCard(
+        user_id=user.id,
+        bank_name="DBS Bank",
+        last_four_digits="1234",
+    )
+    db_session.add(card)
+    db_session.flush()
+    return card
+
+
+def make_transaction(db_session, user: User, card: CreditCard, category: Category) -> Transaction:
+    txn = Transaction(
+        user_id=user.id,
+        card_id=card.id,
+        category_id=category.id,
+        merchant_name="STARBUCKS",
+        amount=5.80,
+        transaction_date=date(2026, 8, 1),
+        statement_month=8,
+        statement_year=2026,
+    )
+    db_session.add(txn)
+    db_session.flush()
+    return txn
 
 
 # -- POST -----------------------------------------------------------
@@ -301,6 +332,22 @@ def test_delete_system_category_rejected(db_session, client):
     response = client.delete(f"/categories/{cat.id}", headers=auth_headers(user))
     assert response.status_code in (403, 404)
     assert db_session.query(Category).filter(Category.id == cat.id).first() is not None
+
+
+def test_delete_category_with_transactions_uncategorizes_them(db_session, client):
+    """Deleting a category in use must not 500 — transactions.category_id -> NULL."""
+    user = make_user(db_session)
+    card = make_card(db_session, user)
+    cat = make_custom_category(db_session, user)
+    txn = make_transaction(db_session, user, card, cat)
+
+    response = client.delete(f"/categories/{cat.id}", headers=auth_headers(user))
+    assert response.status_code == 204, response.text
+
+    db_session.expire_all()
+    stored_txn = db_session.query(Transaction).filter(Transaction.id == txn.id).one()
+    assert stored_txn.category_id is None
+    assert db_session.query(Category).filter(Category.id == cat.id).first() is None
 
 
 # -- GET unaffected --------------------------------------------------

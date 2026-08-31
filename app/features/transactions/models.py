@@ -184,7 +184,7 @@ class Transaction(Base):
 
     category_id = Column(
         UUID(as_uuid=True),
-        ForeignKey("cardora.categories.id"),
+        ForeignKey("cardora.categories.id", ondelete="SET NULL"),
         nullable=True  # NULL if uncategorized
     )
     # Transaction category for expense tracking
