@@ -2,6 +2,8 @@
 Category Pydantic Schemas (DTOs)
 
     - CategoryResponse → CategoryDto (output)
+    - CategoryCreate → POST /categories input
+    - CategoryUpdate → PATCH /categories/{id} input
 
 Categories in Cardora:
 - System categories: user_id = NULL (available to all users)
@@ -106,11 +108,56 @@ class CategoryCreate(BaseModel):
         }
 
     Used for:
-    - POST /categories (future endpoint)
+    - POST /categories
     - User creates custom category
     """
     name: str = Field(
         ...,
+        min_length=1,
+        max_length=100,
+        description="Category name",
+        examples=["Coffee Shops", "Pet Supplies"]
+    )
+
+    icon: Optional[str] = Field(
+        None,
+        max_length=10,
+        description="Category icon (emoji)",
+        examples=["☕", "🐾"]
+    )
+
+    color: Optional[str] = Field(
+        None,
+        max_length=7,
+        description="Category color (hex code)",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "name": "Coffee Shops",
+                "icon": "☕",
+                "color": "#8B4513"
+            }
+        }
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════
+
+class CategoryUpdate(BaseModel):
+    """
+    Schema for updating custom category (input)
+
+    All fields optional — only provided fields are updated (PATCH semantics).
+
+    Used for:
+    - PATCH /categories/{category_id}
+    - User updates their own custom category
+    """
+    name: Optional[str] = Field(
+        None,
         min_length=1,
         max_length=100,
         description="Category name",
@@ -167,7 +214,7 @@ GET /categories
 
 POST /categories
 Content-Type: application/json
-Authorization: Bearer <token>
+Authorization: Bearer ***
 
 {
     "name": "Coffee Shops",

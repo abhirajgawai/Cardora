@@ -1,11 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import { User, Shield, Bell, ArrowLeft } from 'lucide-react';
+import { User, Shield, Bell, Tags, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-import { AccountSettings, PrivacyDataSettings, NotificationSettings } from '@/features/settings';
+import {
+  AccountSettings,
+  PrivacyDataSettings,
+  NotificationSettings,
+  CategorySettings,
+} from '@/features/settings';
 
-type TabId = 'account' | 'privacy' | 'notifications';
+type TabId = 'account' | 'categories' | 'privacy' | 'notifications';
 
 interface Tab {
   id: TabId;
@@ -23,6 +28,12 @@ export default function SettingsPage() {
       name: 'Account',
       icon: <User className="w-5 h-5" />,
       component: <AccountSettings />,
+    },
+    {
+      id: 'categories',
+      name: 'Categories',
+      icon: <Tags className="w-5 h-5" />,
+      component: <CategorySettings />,
     },
     {
       id: 'privacy',
@@ -58,32 +69,27 @@ export default function SettingsPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-6 sm:mt-8">
         <div className="grid lg:grid-cols-12 gap-8">
-          {/* Sidebar Navigation */}
+          {/* Sidebar */}
           <div className="lg:col-span-3">
-            <div className="fintech-card p-4 sticky top-8">
-              <nav className="space-y-2">
-                {tabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`
-                      w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200
-                      ${
-                        activeTab === tab.id
-                          ? 'bg-primary text-primary-foreground shadow-lg'
-                          : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-                      }
-                    `}
-                  >
-                    {tab.icon}
-                    <span>{tab.name}</span>
-                  </button>
-                ))}
-              </nav>
-            </div>
+            <nav className="fintech-card rounded-xl p-2 space-y-1">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+                    activeTab === tab.id
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  }`}
+                >
+                  {tab.icon}
+                  <span>{tab.name}</span>
+                </button>
+              ))}
+            </nav>
           </div>
 
-          {/* Content Area */}
+          {/* Content */}
           <div className="lg:col-span-9">
             {currentTab?.component}
           </div>
