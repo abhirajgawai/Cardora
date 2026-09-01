@@ -12,6 +12,7 @@ Cross-user access to custom categories returns 404 (never leaks existence).
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -82,8 +83,15 @@ async def create_category(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    trimmed_name = payload.name.strip()
+    if not trimmed_name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Category name cannot be empty"
+        )
+
     duplicate = db.query(Category).filter(
-        Category.name == payload.name,
+        func.lower(Category.name) == trimmed_name.lower(),
         ((Category.user_id == current_user.id) | (Category.user_id.is_(None)))
     ).first()
     if duplicate:
@@ -94,7 +102,7 @@ async def create_category(
 
     category = Category(
         user_id=current_user.id,
-        name=payload.name,
+        name=trimmed_name,
         icon=payload.icon,
         color=payload.color,
         is_custom=True,
@@ -172,9 +180,18 @@ async def update_category(
             detail="No fields to update"
         )
 
-    if "name" in updates and updates["name"] != category.name:
+    if "name" in updates:
+        trimmed_name = updates["name"].strip()
+        if not trimmed_name:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Category name cannot be empty"
+            )
+        updates["name"] = trimmed_name
+
+    if "name" in updates and updates["name"].lower() != category.name.lower():
         duplicate = db.query(Category).filter(
-            Category.name == updates["name"],
+            func.lower(Category.name) == updates["name"].lower(),
             ((Category.user_id == current_user.id) | (Category.user_id.is_(None)))
         ).first()
         if duplicate:
