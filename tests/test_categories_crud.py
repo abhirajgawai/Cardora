@@ -278,6 +278,15 @@ def test_update_category_rejects_duplicate_name_case_insensitive(db_session, cli
     assert cat.name == "Cat A"
 
 
+def test_update_category_rejects_explicit_null_name(db_session, client):
+    user = make_user(db_session)
+    cat = make_custom_category(db_session, user, name="Cat A")
+    response = client.patch(f"/categories/{cat.id}", json={"name": None}, headers=auth_headers(user))
+    assert response.status_code == 400
+    db_session.refresh(cat)
+    assert cat.name == "Cat A"
+
+
 # -- PATCH ----------------------------------------------------------
 
 
