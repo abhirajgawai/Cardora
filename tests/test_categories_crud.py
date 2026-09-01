@@ -242,6 +242,42 @@ def test_create_category_rejects_duplicate_name(db_session, client):
     assert response.status_code == 409
 
 
+def test_create_category_rejects_duplicate_name_case_insensitive_and_trimmed(db_session, client):
+    user = make_user(db_session)
+    make_custom_category(db_session, user, name="Coffee Shops")
+    for variant in ("coffee shops", "COFFEE SHOPS", "  Coffee Shops  "):
+        response = client.post("/categories", json={"name": variant}, headers=auth_headers(user))
+        assert response.status_code == 409, variant
+    assert db_session.query(Category).filter(Category.user_id == user.id).count() == 1
+
+
+def test_create_category_rejects_system_category_name(db_session, client):
+    user = make_user(db_session)
+    make_system_category(db_session, name="Groceries")
+    response = client.post("/categories", json={"name": " groceries "}, headers=auth_headers(user))
+    assert response.status_code == 409
+
+
+def test_create_category_trims_name_and_rejects_blank(db_session, client):
+    user = make_user(db_session)
+    response = client.post("/categories", json={"name": "  Pet Supplies  "}, headers=auth_headers(user))
+    assert response.status_code == 201, response.text
+    assert response.json()["name"] == "Pet Supplies"
+
+    blank = client.post("/categories", json={"name": "   "}, headers=auth_headers(user))
+    assert blank.status_code == 400
+
+
+def test_update_category_rejects_duplicate_name_case_insensitive(db_session, client):
+    user = make_user(db_session)
+    cat = make_custom_category(db_session, user, name="Cat A")
+    make_custom_category(db_session, user, name="Cat B")
+    response = client.patch(f"/categories/{cat.id}", json={"name": " cat b "}, headers=auth_headers(user))
+    assert response.status_code == 409
+    db_session.refresh(cat)
+    assert cat.name == "Cat A"
+
+
 # -- PATCH ----------------------------------------------------------
 
 
